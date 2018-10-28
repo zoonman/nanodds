@@ -12,11 +12,14 @@ uint8_t freqMultiplier = 5;
 long encoderPosition  = 0;
 
 //
-Encoder myEnc(2, 3); // pin (2 = D2, 3 = D3)
+Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
 Si5351 si5351;
+
 Bands bands;
+
 SMeter sMeter(A0);
 Button txButton(PD5);
+Button freqEncButton(PD5);
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -59,7 +62,7 @@ void setup() {
     state.frequency = START_F;
 
     setFrequency();
-    myEnc.write(encoderPosition);
+    freqEncoder.write(encoderPosition);
 
     setFrequency();
 
@@ -77,42 +80,37 @@ void loop() {
     sMeter.loop();
 
     txButton.loop();
+    freqEncButton.loop();
 
-    int pinD4 = digitalRead(PD4);
 
-    long int lastEncoderPosition = myEnc.read();
+    long int lastEncoderPosition = freqEncoder.read();
     if (lastEncoderPosition > encoderPosition + 2) {
-        if (pinD4 == LOW) {
+        if (freqEncButton.isLongPress()) {
             displayStep(-1);
-            delay(500);
-            millis();
-
         } else {
             state.frequency -= state.step;
             encoderPosition = lastEncoderPosition;
         }
     } else if (lastEncoderPosition < encoderPosition - 2) {
-        if (pinD4 == LOW) {
+        if (freqEncButton.isLongPress()) {
             displayStep(1);
-            delay(500);
         } else {
             state.frequency += state.step;
             encoderPosition = lastEncoderPosition;
         }
-    } else if (pinD4 == LOW) {
+    } else if (freqEncButton.isShortPress()) {
         bands.next();
         delay(100);
     }
     if (oFrequency != state.frequency) {
         setFrequency();
     }
-/*
-    int pinD5 = digitalRead(PD5);
-    if (pinD5 == LOW && state.tx == 0) {
+
+    if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
         displayMode();
-    } else if (pinD5 == HIGH && state.tx != 0) {
+    } else if (txButton.isPressed() && state.tx != 0) {
         state.tx = false;
         displayMode();
-    }*/
+    }
 }
