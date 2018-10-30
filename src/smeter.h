@@ -83,7 +83,7 @@ public:
     }
 private:
     volatile uint8_t pl = 1;
-    int d,pd;
+    int d = 0, pd = 0;
     uint8_t pin;
 };
 

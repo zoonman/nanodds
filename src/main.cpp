@@ -7,8 +7,6 @@
 #include "bands.h"
 #include "button.h"
 
-
-uint8_t freqMultiplier = 5;
 long encoderPosition  = 0;
 
 //
@@ -18,8 +16,8 @@ Si5351 si5351;
 Bands bands;
 
 SMeter sMeter(A0);
+Button freqEncButton(PD4);
 Button txButton(PD5);
-Button freqEncButton(PD5);
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -33,8 +31,12 @@ void render() {
     tft.fillScreen(ST77XX_BLACK);
     displayModulation();
     displayMode();
-    bands.update();
-    displayStep(0);
+    bands.render();
+    displayStep(-1);
+    displayScale();
+    displayFrequency();
+    sMeter.drawLevel(1);
+    sMeter.drawLevel(12);
 }
 /*
 TX - must be separate, external 1k
@@ -54,7 +56,6 @@ void setup() {
 
     tft.setRotation(1);
 
-    sMeter.setup();
     //
     Serial.begin(9600);
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
@@ -70,8 +71,11 @@ void setup() {
 
     render();
 
-    pinMode(PD4, INPUT_PULLUP);
     txButton.setup();
+    freqEncButton.setup();
+
+    render();
+    sMeter.setup();
 }
 
 // MAIN LOOP ===================================================================
@@ -85,23 +89,27 @@ void loop() {
 
     long int lastEncoderPosition = freqEncoder.read();
     if (lastEncoderPosition > encoderPosition + 2) {
-        if (freqEncButton.isLongPress()) {
-            displayStep(-1);
+        if (freqEncButton.isPressed()) {
+            // displayStep(-1);
         } else {
             state.frequency -= state.step;
             encoderPosition = lastEncoderPosition;
         }
     } else if (lastEncoderPosition < encoderPosition - 2) {
-        if (freqEncButton.isLongPress()) {
-            displayStep(1);
+        if (freqEncButton.isPressed()) {
+            // displayStep(1);
         } else {
             state.frequency += state.step;
             encoderPosition = lastEncoderPosition;
         }
+    }
+
+    if (freqEncButton.isLongPress()) {
+        displayStep(1);
     } else if (freqEncButton.isShortPress()) {
         bands.next();
-        delay(100);
     }
+
     if (oFrequency != state.frequency) {
         setFrequency();
     }
@@ -109,7 +117,7 @@ void loop() {
     if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
         displayMode();
-    } else if (txButton.isPressed() && state.tx != 0) {
+    } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         displayMode();
     }
