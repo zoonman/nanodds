@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #define SCALE_Y               (uint8_t)(TFT_HEIGHT / 4 * 3)
-#define SCALE_T               (uint8_t)3
+#define SCALE_T               (uint8_t)5
 #define START_F       (uint32_t)21150000
 #define STR_BUFFER_SIZE       12
 
@@ -37,8 +37,14 @@ volatile uint32_t oFrequency = 0; // Hz
 volatile struct State {
     uint32_t frequency = 0;
     uint32_t step = 100;
+    /**
+     *  Receiver Incremental Tuning
+     */
     bool isRIT = false;
-    uint16_t RITFrequency = 0;
+    /**
+     *  Receiver Incremental Tuning Frequency
+     */
+    int16_t RITFrequency = 0;
     uint8_t band = 0;
     Mode mode = LSB;
     bool tx = false;

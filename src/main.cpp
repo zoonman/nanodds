@@ -21,7 +21,10 @@ Button txButton(PD5);
 
 void setFrequency() {
     oFrequency = state.frequency;
-    si5351.set_freq(state.frequency * 100ULL, SI5351_CLK0);
+    si5351.set_freq(
+            (state.frequency + state.isRIT && !state.tx ? state.RITFrequency : 0) * 100ULL,
+            SI5351_CLK0
+        );
     displayFrequency();
     bands.update();
     displayScale();
@@ -37,6 +40,7 @@ void render() {
     displayFrequency();
     sMeter.drawLevel(1);
     sMeter.drawLevel(12);
+    displayRIT();
 }
 /*
 TX - must be separate, external 1k
@@ -46,6 +50,17 @@ RIT
 
 */
 unsigned long bs;
+
+void switchBand() {
+    bands.next();
+}
+
+void switchStep() {
+    state.isRIT = !state.isRIT;
+    displayRIT();
+    setFrequency();
+}
+
 // SETUP -----------------------------------------------------------------------
 void setup() {
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
@@ -76,6 +91,9 @@ void setup() {
 
     render();
     sMeter.setup();
+
+    freqEncButton.registerShortPressCallback(&switchStep);
+    freqEncButton.registerLongPressCallback(&switchBand);
 }
 
 // MAIN LOOP ===================================================================
@@ -86,29 +104,33 @@ void loop() {
     txButton.loop();
     freqEncButton.loop();
 
-
     long int lastEncoderPosition = freqEncoder.read();
     if (lastEncoderPosition > encoderPosition + 2) {
         if (freqEncButton.isPressed()) {
-            // displayStep(-1);
+            displayStep(-1);
+        } else if (state.isRIT) {
+            if (state.RITFrequency > -999) {
+                state.RITFrequency--;
+            }
+            displayRIT();
         } else {
             state.frequency -= state.step;
-            encoderPosition = lastEncoderPosition;
         }
+        encoderPosition = lastEncoderPosition;
     } else if (lastEncoderPosition < encoderPosition - 2) {
         if (freqEncButton.isPressed()) {
-            // displayStep(1);
+            displayStep(1);
+        } else if (state.isRIT) {
+            if (state.RITFrequency < 999) {
+                state.RITFrequency++;
+            }
+            displayRIT();
         } else {
             state.frequency += state.step;
-            encoderPosition = lastEncoderPosition;
         }
+        encoderPosition = lastEncoderPosition;
     }
 
-    if (freqEncButton.isLongPress()) {
-        displayStep(1);
-    } else if (freqEncButton.isShortPress()) {
-        bands.next();
-    }
 
     if (oFrequency != state.frequency) {
         setFrequency();
@@ -117,8 +139,10 @@ void loop() {
     if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
         displayMode();
+        setFrequency();
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         displayMode();
+        setFrequency();
     }
 }

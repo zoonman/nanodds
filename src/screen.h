@@ -7,6 +7,7 @@
 
 #include <Adafruit_ST7735.h>
 #include <Fonts/FreeSansBold15pt7b.h>
+#include <avr/pgmspace.h>
 
 #include "common.h"
 
@@ -70,11 +71,9 @@ void displayFrequency() {
         };
         if (i == 7) {
             f[i] = FREQUENCY_FAKE_SPACE;
-            // goto fend;
         } else
         if (i == 3) {
             f[i] = '.';
-            // goto fend;
         } else
         if (j >= 0) {
             f[i] = st[j];
@@ -82,8 +81,6 @@ void displayFrequency() {
         } else {
             f[i] = FREQUENCY_FAKE_SPACE;
         }
-        // fend:
-        // ;
     }
 
     tft.setTextSize(1);
@@ -133,9 +130,10 @@ void displayModulation() {
 void displayStep(int8_t offset) {
     if (offset < 0 && state.step > 10) {
         state.step /= 10;
-    } else if (offset > 0 && state.step < 1E+7) {
-        state.step *= 10;
+    } else if (offset > 0) {
+        state.step = state.step < 1E+6 ? state.step * 10 : 1;
     }
+
     textxy(80, TFT_HEIGHT / 4 , "Step: ", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
     ultoa(state.step, b, 10);
     tft.fillRect(110, TFT_HEIGHT / 4, 50, 12, ST77XX_BLACK);
@@ -145,9 +143,16 @@ void displayStep(int8_t offset) {
 }
 
 void displayRIT() {
+    char s[STR_BUFFER_SIZE] = "\0";
     if (state.isRIT) {
-        //
+        char f[STR_BUFFER_SIZE] = "\0";
+        ltoa(state.RITFrequency, f, 10);
+        strcat(s, "RIT: ");
+        strcat(s, f);
+    } else {
+        strcat(s, "_________");
     }
+    textxy(100, 70, s, ST77XX_MAGENTA, ST77XX_BLACK);
 }
 
 void displaySMeter() {
