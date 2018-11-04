@@ -35,7 +35,7 @@ void render() {
     displayModulation();
     displayMode();
     bands.render();
-    displayStep(-1);
+    changeFrequencyStep(-1);
     displayScale();
     displayFrequency();
     sMeter.drawLevel(1);
@@ -66,11 +66,8 @@ void setup() {
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
     // put your setup code here, to run once:
     pinMode(LED_BUILTIN, OUTPUT);
-
     tft.fillScreen(ST77XX_BLACK);
-
     tft.setRotation(1);
-
     //
     Serial.begin(9600);
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
@@ -105,9 +102,12 @@ void loop() {
     freqEncButton.loop();
 
     long int lastEncoderPosition = freqEncoder.read();
+    if (lastEncoderPosition != encoderPosition) {
+        freqEncButton.cancelHandlers();
+    }
     if (lastEncoderPosition > encoderPosition + 2) {
         if (freqEncButton.isPressed()) {
-            displayStep(-1);
+            changeFrequencyStep(-1);
         } else if (state.isRIT) {
             if (state.RITFrequency > -999) {
                 state.RITFrequency--;
@@ -119,7 +119,7 @@ void loop() {
         encoderPosition = lastEncoderPosition;
     } else if (lastEncoderPosition < encoderPosition - 2) {
         if (freqEncButton.isPressed()) {
-            displayStep(1);
+            changeFrequencyStep(1);
         } else if (state.isRIT) {
             if (state.RITFrequency < 999) {
                 state.RITFrequency++;

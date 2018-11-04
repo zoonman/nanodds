@@ -127,8 +127,8 @@ void displayModulation() {
 }
 
 
-void displayStep(int8_t offset) {
-    if (offset < 0 && state.step > 10) {
+void changeFrequencyStep(int8_t offset) {
+    if (offset < 0 && state.step > 1) {
         state.step /= 10;
     } else if (offset > 0) {
         state.step = state.step < 1E+6 ? state.step * 10 : 1;

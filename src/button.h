@@ -5,7 +5,7 @@
 #ifndef NANODDS_BUTTON_H
 #define NANODDS_BUTTON_H
 
-typedef void (*CALLBACK) (void);
+typedef void (*CALLBACK) ();
 
 #include <Arduino.h>
 class Button {
@@ -29,7 +29,7 @@ public:
         if (this->states[currentPinState].isActive) {
             if (tdf > this->debounceThreshold) { // we have a "settled" state
                 if (tdf > this->longPressThreshold) {
-                    if (this->longPressCallback != nullptr && currentPinState == this->pressedState) {
+                    if (this->longPressCallback != nullptr && currentPinState == this->pressedState && this->isEnabled) {
                         this->longPressCallback();
                         this->states[currentPinState].stableStarted = this->states[currentPinState].started = ms;
                         this->states[this->pressedState].stableStarted = this->states[this->releasedState].stableStarted = ms;
@@ -38,19 +38,26 @@ public:
                     //
                     auto rpdft = this->states[this->releasedState].stableStarted - this->states[this->pressedState].stableStarted;
                     if (currentPinState == this->releasedState && rpdft > this->shortPressThreshold && rpdft < this->longPressThreshold) {
-                        if (this->shortPressCallback != nullptr) {
+                        if (this->shortPressCallback != nullptr && this->isEnabled) {
                             this->shortPressCallback();
                             this->states[this->pressedState].stableStarted = this->states[this->releasedState].stableStarted = ms;
                         }
                     }
                 }
                 this->states[currentPinState].stableStarted = this->states[currentPinState].started;
+                if (this->isReleased()) {
+                    this->isEnabled = true;
+                }
             }
         } else {
             this->states[currentPinState].started = ms;
         }
         this->states[this->pressedState].isActive = (currentPinState == this->pressedState);
         this->states[this->releasedState].isActive = (currentPinState == this->releasedState);
+    }
+
+    void cancelHandlers() {
+        this->isEnabled = false;
     }
 
     bool isPressed() {
@@ -78,13 +85,13 @@ private:
 
     struct State {
         bool isActive = false;
-        //bool isLongPress = false;
-        //bool isShortPress = false;
         unsigned long started = 0;
         unsigned long stableStarted = 0;
     };
     int pressedState = LOW;
     int releasedState = HIGH;
+
+    bool isEnabled = true;
 
     CALLBACK shortPressCallback = nullptr;
     CALLBACK longPressCallback = nullptr;

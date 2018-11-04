@@ -6,7 +6,7 @@ Import("env")
 
 
 # copy files from a given array
-def copy_itmes(items):
+def copy_items(items):
     for item in items:
         copy2(
             item.__str__(),
@@ -16,9 +16,8 @@ def copy_itmes(items):
 
 # run this after build
 def after_build(target, source, env):
-    print target[0].__str__()
-    copy_itmes(target)
-    copy_itmes(source)
+    copy_items(target)
+    copy_items(source)
 
 
 # register callback

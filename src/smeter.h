@@ -11,28 +11,43 @@
 
 class SMeter {
 public:
-    SMeter(uint8_t pin) {
-        d = 1;
+    explicit SMeter(uint8_t pin) {
         pd = 1;
         this->pin = pin;
     };
 
     void setup() {
         drawLevel(12);
+        // add pin listener
+
+        // render scale
+    }
+
+    void render() {
+        // display bars
+
+        //
+    }
+
+    uint16_t level2color(uint8_t l) {
+        switch (l) {
+            case 10:
+                return ST77XX_YELLOW;
+            case 11:
+                return ST77XX_ORANGE;
+            case 12:
+                return ST77XX_RED;
+            default:
+                return ST77XX_GREEN;
+        }
     }
 
     void drawLevelBar(uint8_t l) {
-        uint16_t color;
+        uint16_t color = this->level2color(l);
         uint8_t wOffset = (l > 9) ? (uint8_t)2 : (uint8_t)0, sOffset = 0;
         uint8_t lxp = (l - (uint8_t)1) * BAR_WIDTH + (uint8_t)2;
 
-        switch (l) {
-            case 10: color = ST77XX_YELLOW; break;
-            case 11: color = ST77XX_ORANGE; sOffset = 2; break;
-            case 12: color = ST77XX_RED;  break;
-            default:
-                color = ST77XX_GREEN;
-        }
+        if (l == 11) sOffset = 2;
 
         tft.fillRect(lxp + sOffset, TFT_HEIGHT - 8, BAR_WIDTH - 1 + wOffset, 6, color);
 
@@ -74,16 +89,16 @@ public:
     void loop() {
         int d = analogRead(pin);
         if (pd != d) {
-            itoa(d, b, 10);
-            tft.setTextColor(COLOR_BRIGHT_BLUE);
-            textxy(TFT_WIDTH - 30, TFT_HEIGHT - 30, b, COLOR_BRIGHT_BLUE, ST77XX_BLACK);
+            // itoa(d, b, 10);
+            // tft.setTextColor(COLOR_BRIGHT_BLUE);
+            // textxy(TFT_WIDTH - 30, TFT_HEIGHT - 30, b, COLOR_BRIGHT_BLUE, ST77XX_BLACK);
             pd = d;
             drawLevel(static_cast<uint8_t>(pd / 92));
         }
     }
 private:
     volatile uint8_t pl = 1;
-    int d = 0, pd = 0;
+    int pd = 0;
     uint8_t pin;
 };
 
