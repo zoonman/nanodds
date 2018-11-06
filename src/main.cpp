@@ -27,7 +27,7 @@ void setFrequency() {
         );
     displayFrequency();
     bands.update();
-    displayScale();
+    displayScale(false);
 }
 
 void render() {
@@ -36,7 +36,7 @@ void render() {
     displayMode();
     bands.render();
     changeFrequencyStep(-1);
-    displayScale();
+    displayScale(true);
     displayFrequency();
     sMeter.drawLevel(1);
     sMeter.drawLevel(12);
@@ -69,7 +69,7 @@ void setup() {
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
     //
-    Serial.begin(9600);
+    // Serial.begin(9600);
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
 
     state.frequency = START_F;
@@ -102,14 +102,14 @@ void loop() {
     freqEncButton.loop();
 
     long int lastEncoderPosition = freqEncoder.read();
-    if (lastEncoderPosition != encoderPosition) {
+    if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
         freqEncButton.cancelHandlers();
     }
     if (lastEncoderPosition > encoderPosition + 2) {
         if (freqEncButton.isPressed()) {
             changeFrequencyStep(-1);
         } else if (state.isRIT) {
-            if (state.RITFrequency > -999) {
+            if (state.RITFrequency > -9999) {
                 state.RITFrequency--;
             }
             displayRIT();
@@ -121,7 +121,7 @@ void loop() {
         if (freqEncButton.isPressed()) {
             changeFrequencyStep(1);
         } else if (state.isRIT) {
-            if (state.RITFrequency < 999) {
+            if (state.RITFrequency < 9999) {
                 state.RITFrequency++;
             }
             displayRIT();
