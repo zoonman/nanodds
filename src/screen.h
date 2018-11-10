@@ -5,6 +5,7 @@
 #ifndef NANODDS_SCREEN_H
 #define NANODDS_SCREEN_H
 
+#include "Adafruit_GFX.h"
 #include <Adafruit_ST7735.h>
 #include <Fonts/FreeSansBold15pt7b.h>
 #include <avr/pgmspace.h>
@@ -27,10 +28,17 @@
 #define COLOR_BAND_BACKGROUND 0x0208
 #define COLOR_GRAY_MEDIUM     0x9CD3
 
+
 // display
-#define TFT_HEIGHT            (uint8_t)128
+#define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
 #define TFT_WIDTH             (uint8_t)160
 #define TFT_QUOTER_WIDTH      (uint8_t)(TFT_WIDTH/4)
+#define GRID                  (uint8_t)(TFT_HEIGHT/16)
+#define SCALE_Y               (uint8_t)(GRID*12)
+#define STEP_Y                (uint8_t)(GRID*3)
+#define RIT_Y                 (uint8_t)(GRID*8)
+#define SWR_SCALE_Y           (uint8_t)(GRID*10)
+#define SWR_SCALE_TY          (uint8_t)(SWR_SCALE_Y - GRID)
 
 struct Bounds {
     int16_t x, y;
@@ -60,12 +68,23 @@ void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *te
     textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
 }
 
+char oldFreq[STR_BUFFER_SIZE] = "\0";
+
+
+uint8_t symbolLength(char c) {
+    switch (c) {
+        case '.': return 7;
+        case '/': return 6;
+        default: return 16;
+    }
+}
+
 void displayFrequency() {
     char cFreq[STR_BUFFER_SIZE] = "\0";
     char dFreq[STR_BUFFER_SIZE] = "\0";
     ultoa(state.frequency, cFreq, 10);
-    int8_t j = STR_BUFFER_SIZE-2;
-    for (int8_t i = STR_BUFFER_SIZE-2;i >= 0;i--) {
+    int8_t j = STR_BUFFER_SIZE - 2;
+    for (int8_t i = STR_BUFFER_SIZE - 2; i >= 0; i--) {
         while (cFreq[j] == 0 && j > 0) {
             j--;
         };
@@ -84,21 +103,38 @@ void displayFrequency() {
     }
     tft.setTextSize(1);
     tft.setFont(&FreeSansBold15pt7b);
-    tft.setTextColor(COLOR_BRIGHT_GREEN);
 
-    Bounds t = {};
+    int16_t xof = FREQUENCY_X + (state.frequency < 1E+7 ? 10 : 0);
+    for (int8_t i = 0; i < STR_BUFFER_SIZE-1; i++) {
+        auto osl = symbolLength(oldFreq[i]);
+        auto nsl = symbolLength(dFreq[i]);
+        if (oldFreq[i] != dFreq[i]) {
+            if (osl != nsl) {
+                // we have a shift
+                Bounds t = {};
+                tft.getTextBounds(oldFreq, FREQUENCY_X, FREQUENCY_Y, &t.x, &t.y, &t.w, &t.h);
+                tft.fillRect(t.x, t.y, t.w, t.h, ST77XX_BLACK);
+                break;
+            } else {
+                tft.fillRect(xof, FREQUENCY_Y-21, osl, 22, ST77XX_BLACK);
+            }
+        }
+        xof += osl ;
+    }
 
-    tft.getTextBounds(dFreq, FREQUENCY_X, FREQUENCY_Y, &t.x, &t.y, &t.w, &t.h);
-    tft.fillRect(t.x, t.y, t.w+10, t.h, ST77XX_BLACK);
-
-    tft.setCursor(
+    textxy(
             FREQUENCY_X + (state.frequency < 1E+7 ? 10 : 0),
-            FREQUENCY_Y
-    );
-    tft.print(dFreq);
+            FREQUENCY_Y,
+            dFreq,
+            COLOR_BRIGHT_GREEN,
+            ST77XX_BLACK
+            );
+
+    strcpy(oldFreq, dFreq);
     tft.setFont();
-    textxy(0, TFT_HEIGHT / 4, "Frequency:", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(0, STEP_Y, "Frequency:", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
 }
+
 
 
 void scaleTriangle(uint16_t c) {
@@ -112,7 +148,6 @@ void displayMode() {
         drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, "RX", COLOR_BRIGHT_GREEN, COLOR_DARK_GREEN);
     }
 }
-
 
 void displayModulation() {
     drawRoundTextBox(
@@ -133,10 +168,10 @@ void changeFrequencyStep(int8_t offset) {
         state.step = state.step < 1E+6 ? state.step * 10 : 1;
     }
 
-    textxy(80, TFT_HEIGHT / 4 , "Step: ", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(80, STEP_Y, "Step: ", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
     ultoa(state.step, b, 10);
-    tft.fillRect(110, TFT_HEIGHT / 4, 50, 12, ST77XX_BLACK);
-    textxy(110, TFT_HEIGHT / 4, b, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    tft.fillRect(110, STEP_Y, 50, 12, ST77XX_BLACK);
+    textxy(110, STEP_Y, b, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
     tft.fillRect(0, TFT_HEIGHT / 2 + 3, TFT_WIDTH, 2, ST77XX_BLACK);
 }
 
@@ -152,15 +187,82 @@ void displayRIT() {
     } else {
         memset(s, 0x20, 10);
     }
-    textxy(100, 70, s, ST77XX_MAGENTA, ST77XX_BLACK);
+    textxy(100, RIT_Y, s, ST77XX_MAGENTA, ST77XX_BLACK);
 }
 
 void displaySMeter() {
 
 }
 
-void displaySWR() {
+uint8_t convertSWR(uint8_t swr) {
+    return TFT_WIDTH - static_cast<uint8_t>(TFT_WIDTH/log(swr-10));
+}
 
+void displaySWRTick(uint8_t value, const char label[]) {
+    uint8_t swrx = convertSWR(value);
+    if (swrx % 2 == 0) {
+        swrx++;
+    }
+    textxy(swrx - strlen(label) * 5 / 2, SWR_SCALE_TY, label, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    tft.drawFastVLine(swrx, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+}
+
+
+void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
+    char s[5] = "\0";
+    utoa(n, s, 10);
+    auto l = strlen(s);
+    auto bf = length - 2;
+    buf[length - 1] = '\0';
+    while (l > 0) {
+        if (fp > 0 && length - 2 - bf == fp) {
+            buf[bf--] = '.';
+            continue;
+        }
+        l--;
+        buf[bf] = s[l];
+        bf--;
+
+    }
+    while (bf >= 0) buf[bf--] = ' ';
+}
+
+#define DELTA 5
+void displaySWR() {
+    // 1..1.5..2..3...inf
+    uint8_t swr = (uint8_t)(analogRead(A1) / 4); // 10 = 1, 15 = 1.5, 20 = 2, etc, max is 255, 1024
+    swr = swr > 10 ? swr : (uint8_t)10;
+
+    if (swr > state.swr + DELTA || swr < state.swr - DELTA) {
+        state.swr = swr;
+        tft.drawFastVLine(0, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+        tft.fillRect(0, SWR_SCALE_Y, TFT_WIDTH-1, 5, tft.color565(20, 20, 20));
+
+        uint8_t swrX = convertSWR(state.swr);
+        uint16_t color = COLOR_BRIGHT_GREEN;
+        for (uint8_t x = 0; x < min(swrX, TFT_WIDTH); x+=2) {
+            if (x < convertSWR(20)) {
+                color = COLOR_BRIGHT_GREEN;
+            } else if (x < convertSWR(30)) {
+                color = ST77XX_YELLOW;
+            } else {
+                color = COLOR_BRIGHT_RED;
+            }
+            tft.drawFastVLine(x, SWR_SCALE_Y, 5, color);
+        }
+        textxy(0, SWR_SCALE_TY, "SWR", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+        char swrb[8] = "\0";
+        // utoa(state.swr, b, 10);
+        intToStrFP(swrb, state.swr, 1, 5);
+        textxy(20, SWR_SCALE_TY, swrb, color, ST77XX_BLACK);
+        displaySWRTick(15, "1.5");
+        displaySWRTick(20, "2");
+        displaySWRTick(30, "3");
+        displaySWRTick(50, "5");
+        displaySWRTick(100, "10");
+        tft.drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
+        textxy(TFT_WIDTH - 20, SWR_SCALE_TY, "inf");
+    }
 }
 
 
@@ -192,6 +294,8 @@ void displayScale(bool redraw) {
         scaleTriangle(ST77XX_BLACK);
         scalePosX = newScalePosX;
         scaleTriangle(COLOR_BRIGHT_BLUE);
+
+
     }
 }
 

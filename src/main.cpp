@@ -38,9 +38,11 @@ void render() {
     changeFrequencyStep(-1);
     displayScale(true);
     displayFrequency();
+    sMeter.setup();
     sMeter.drawLevel(1);
     sMeter.drawLevel(12);
     displayRIT();
+    displaySWR();
 }
 /*
 TX - must be separate, external 1k
@@ -53,6 +55,7 @@ unsigned long bs;
 
 void switchBand() {
     bands.next();
+    displayScale(true);
 }
 
 void switchStep() {
@@ -103,7 +106,7 @@ void loop() {
 
     long int lastEncoderPosition = freqEncoder.read();
     if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
-        freqEncButton.cancelHandlers();
+        freqEncButton.disable();
     }
     if (lastEncoderPosition > encoderPosition + 2) {
         if (freqEncButton.isPressed()) {
@@ -145,4 +148,7 @@ void loop() {
         displayMode();
         setFrequency();
     }
+
+    displaySWR();
+
 }

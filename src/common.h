@@ -7,15 +7,14 @@
 
 #include <stdint.h>
 
-#define SCALE_Y               (uint8_t)(TFT_HEIGHT / 4 * 3)
 #define SCALE_T               (uint8_t)5
-#define START_F       (uint32_t)21150000
+#define START_F               (uint32_t)21150000
 #define STR_BUFFER_SIZE       12
 
 
 // positions
 #define FREQUENCY_X           (uint8_t)10
-#define FREQUENCY_Y           (uint8_t)(TFT_HEIGHT / 2)
+#define FREQUENCY_Y           (uint8_t)56
 #define FREQUENCY_FAKE_SPACE  '/'
 
 
@@ -73,6 +72,7 @@ volatile struct State {
      * dot_ms = 60 * 1000 / (wpm * 50) = 1200 / wpm
      */
     uint8_t wpm = 10;
+    uint8_t swr = 10;
 } state;
 
 // Memory Cells

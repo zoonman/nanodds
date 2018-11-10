@@ -30,6 +30,7 @@ public:
             if (tdf > this->debounceThreshold) { // we have a "settled" state
                 if (tdf > this->longPressThreshold) {
                     if (this->longPressCallback != nullptr && currentPinState == this->pressedState && this->isEnabled) {
+                        this->wasLongPress = true;
                         this->longPressCallback();
                         this->states[currentPinState].stableStarted = this->states[currentPinState].started = ms;
                         this->states[this->pressedState].stableStarted = this->states[this->releasedState].stableStarted = ms;
@@ -38,7 +39,7 @@ public:
                     //
                     auto rpdft = this->states[this->releasedState].stableStarted - this->states[this->pressedState].stableStarted;
                     if (currentPinState == this->releasedState && rpdft > this->shortPressThreshold && rpdft < this->longPressThreshold) {
-                        if (this->shortPressCallback != nullptr && this->isEnabled) {
+                        if (this->shortPressCallback != nullptr && this->isEnabled && !this->wasLongPress) {
                             this->shortPressCallback();
                             this->states[this->pressedState].stableStarted = this->states[this->releasedState].stableStarted = ms;
                         }
@@ -47,6 +48,7 @@ public:
                 this->states[currentPinState].stableStarted = this->states[currentPinState].started;
                 if (this->isReleased()) {
                     this->isEnabled = true;
+                    this->wasLongPress = false;
                 }
             }
         } else {
@@ -56,7 +58,7 @@ public:
         this->states[this->releasedState].isActive = (currentPinState == this->releasedState);
     }
 
-    void cancelHandlers() {
+    void disable() {
         this->isEnabled = false;
     }
 
@@ -92,6 +94,7 @@ private:
     int releasedState = HIGH;
 
     bool isEnabled = true;
+    bool wasLongPress = false;
 
     CALLBACK shortPressCallback = nullptr;
     CALLBACK longPressCallback = nullptr;
