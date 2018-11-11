@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #define SCALE_T               (uint8_t)5
-#define START_F               (uint32_t)21150000
+#define START_F               (uint32_t)3899000
 #define STR_BUFFER_SIZE       12
 
 

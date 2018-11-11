@@ -22,7 +22,7 @@ Button txButton(PD5);
 void setFrequency() {
     oFrequency = state.frequency;
     si5351.set_freq(
-            (state.frequency + state.isRIT && !state.tx ? state.RITFrequency : 0) * 100ULL,
+            static_cast<uint64_t>(state.frequency + 8000000 + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
             SI5351_CLK0
         );
     displayFrequency();
@@ -74,7 +74,8 @@ void setup() {
     //
     // Serial.begin(9600);
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
-
+    si5351.output_enable(SI5351_CLK0, 1);
+    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
     state.frequency = START_F;
 
     setFrequency();
