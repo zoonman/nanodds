@@ -16,7 +16,7 @@
 #define FREQUENCY_X           (uint8_t)10
 #define FREQUENCY_Y           (uint8_t)56
 #define FREQUENCY_FAKE_SPACE  '/'
-
+#define INTERMEDIATE_FREQUENCY 8000000
 
 char b[STR_BUFFER_SIZE];
 
@@ -71,7 +71,7 @@ volatile struct State {
      *
      * dot_ms = 60 * 1000 / (wpm * 50) = 1200 / wpm
      */
-    uint8_t wpm = 10;
+    // uint8_t wpm = 10;
     uint8_t swr = 10;
 } state;
 

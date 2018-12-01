@@ -14,9 +14,9 @@
 
 // For the breakout, you can use any 2 or 3 pins
 // These pins will also work for the 1.8" TFT shield
-#define TFT_CS                10
-#define TFT_RST               8
-#define TFT_DC                9
+#define TFT_CS                10 // D10, Chip select pin #, SS
+#define TFT_RST               8  // D8, Reset pin # (optional, pass -1 if unused), PB0
+#define TFT_DC                9  // A0, Data/Command pin # (PB1)
 
 // colors
 #define COLOR_BRIGHT_GREEN    0x96C0
@@ -231,6 +231,9 @@ void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
 void displaySWR() {
     // 1..1.5..2..3...inf
     uint8_t swr = (uint8_t)(analogRead(A1) / 4); // 10 = 1, 15 = 1.5, 20 = 2, etc, max is 255, 1024
+    /**
+     * SWR is calculated as ratio REFLECTED/DIRECT POWER
+     */
     swr = swr > 10 ? swr : (uint8_t)10;
 
     if (swr > state.swr + DELTA || swr < state.swr - DELTA) {
@@ -241,7 +244,7 @@ void displaySWR() {
         uint8_t swrX = convertSWR(state.swr);
         uint16_t color = COLOR_BRIGHT_GREEN;
         for (uint8_t x = 0; x < min(swrX, TFT_WIDTH); x+=2) {
-            if (x < convertSWR(20)) {
+            if (x < convertSWR(15)) {
                 color = COLOR_BRIGHT_GREEN;
             } else if (x < convertSWR(30)) {
                 color = ST77XX_YELLOW;
