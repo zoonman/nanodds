@@ -14,9 +14,14 @@
 
 // For the breakout, you can use any 2 or 3 pins
 // These pins will also work for the 1.8" TFT shield
-#define TFT_CS                10 // D10, Chip select pin #, SS
-#define TFT_RST               8  // D8, Reset pin # (optional, pass -1 if unused), PB0
-#define TFT_DC                9  // A0, Data/Command pin # (PB1)
+// #define TFT_CS                10 // D10, Chip select pin #, SS
+//  #define TFT_RST               8  // D8, Reset pin # (optional, pass -1 if unused), PB0
+// #define TFT_DC                9  // A0, Data/Command pin # (PB1)
+
+#define TFT_CS                4 // D10, Chip select pin #, SS
+#define TFT_RST               -1  // D8, Reset pin # (optional, pass -1 if unused), PB0
+#define TFT_DC                1  // A0, Data/Command pin # (PB1)
+
 
 // colors
 #define COLOR_BRIGHT_GREEN    0x96C0
@@ -132,7 +137,7 @@ void displayFrequency() {
 
     strcpy(oldFreq, dFreq);
     tft.setFont();
-    textxy(0, STEP_Y, "Frequency:", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(0, STEP_Y, PSTR("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
 }
 
 
@@ -143,9 +148,9 @@ void scaleTriangle(uint16_t c) {
 
 void displayMode() {
     if (state.tx) {
-        drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, "TX", ST77XX_WHITE, COLOR_MEDIUM_RED);
+        drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, PSTR("TX"), ST77XX_WHITE, COLOR_MEDIUM_RED);
     } else {
-        drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, "RX", COLOR_BRIGHT_GREEN, COLOR_DARK_GREEN);
+        drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, PSTR("RX"), COLOR_BRIGHT_GREEN, COLOR_DARK_GREEN);
     }
 }
 
@@ -168,7 +173,7 @@ void changeFrequencyStep(int8_t offset) {
         state.step = state.step < 1E+6 ? state.step * 10 : 1;
     }
 
-    textxy(80, STEP_Y, "Step: ", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(80, STEP_Y, PSTR("Step: "), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
     ultoa(state.step, b, 10);
     tft.fillRect(110, STEP_Y, 50, 12, ST77XX_BLACK);
     textxy(110, STEP_Y, b, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
@@ -253,7 +258,7 @@ void displaySWR() {
             }
             tft.drawFastVLine(x, SWR_SCALE_Y, 5, color);
         }
-        textxy(0, SWR_SCALE_TY, "SWR", COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+        textxy(0, SWR_SCALE_TY, PSTR("SWR"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
         char swrb[8] = "\0";
         // utoa(state.swr, b, 10);
         intToStrFP(swrb, state.swr, 1, 5);
@@ -264,7 +269,7 @@ void displaySWR() {
         displaySWRTick(50, "5");
         displaySWRTick(100, "10");
         tft.drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
-        textxy(TFT_WIDTH - 20, SWR_SCALE_TY, "inf");
+        textxy(TFT_WIDTH - 20, SWR_SCALE_TY, PSTR("inf"));
     }
 }
 

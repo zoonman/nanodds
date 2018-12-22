@@ -1,6 +1,11 @@
-#define ENCODER_OPTIMIZE_INTERRUPTS
+// #define ENCODER_OPTIMIZE_INTERRUPTS
 #define TWI_FREQ 400000L
-#include <Encoder.h>
+
+#define WIRING 1
+#define CORE_NUM_INTERRUPT 6
+#define CORE_NUM_INTERRUPT 6
+
+// #include <Encoder.h>
 
 #include <si5351.h>
 
@@ -11,8 +16,8 @@
 long encoderPosition  = 0;
 
 //
-Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
-Si5351 si5351;
+// Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
+// Si5351 si5351;
 
 Bands bands;
 
@@ -22,10 +27,13 @@ Button txButton(PD5);
 
 void setFrequency() {
     oFrequency = state.frequency;
+    /*
     si5351.set_freq(
             static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
             SI5351_CLK0
         );
+
+        */
     displayFrequency();
     bands.update();
     displayScale(false);
@@ -71,6 +79,14 @@ uint8_t PXLT[WATERFALL_COLS * WATERFALL_ROWS];
 
 // SETUP -----------------------------------------------------------------------
 void setup() {
+
+    //PORTD
+    pinMode(13, OUTPUT);
+    digitalWrite(13, 0);
+
+
+    /*
+
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
     // put your setup code here, to run once:
     pinMode(LED_BUILTIN, OUTPUT);
@@ -78,16 +94,19 @@ void setup() {
     tft.setRotation(1);
     //
     // Serial.begin(9600);
+
+    /*
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
     si5351.output_enable(SI5351_CLK2, 1);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
+* /
 
     state.frequency = START_F;
 
     setFrequency();
-    freqEncoder.write(encoderPosition);
+    // freqEncoder.write(encoderPosition);
 
     setFrequency();
 
@@ -102,7 +121,7 @@ void setup() {
     sMeter.setup();
 
     freqEncButton.registerShortPressCallback(&switchStep);
-    freqEncButton.registerLongPressCallback(&switchBand);
+    freqEncButton.registerLongPressCallback(&switchBand);*/
 }
 
 uint8_t row = 0, col = 0;
@@ -110,12 +129,16 @@ uint8_t row = 0, col = 0;
 // MAIN LOOP ===================================================================
 void loop() {
 
+    pinMode(13, OUTPUT);
+    digitalWrite(13, 0);
+
+    /*
     sMeter.loop();
 
     txButton.loop();
     freqEncButton.loop();
 
-    long int lastEncoderPosition = freqEncoder.read();
+    long int lastEncoderPosition = 1; //freqEncoder.read();
     if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
         freqEncButton.disable();
     }
@@ -175,10 +198,11 @@ void loop() {
 
     //for (uint8_t col = 0; col < TFT_WIDTH; col++) {
         panoFreq = panoFreq + fStep * col;
+    /*
         si5351.set_freq(
                 static_cast<uint64_t>(panoFreq + INTERMEDIATE_FREQUENCY)*100ULL,
                 SI5351_CLK2
-        );
+        );* /
         PXLT[col + WATERFALL_COLS * row] = static_cast<uint8_t>(analogRead(A0) / 4);
     //}
     if (++col >= WATERFALL_COLS) {
@@ -207,6 +231,6 @@ void loop() {
             row = 0;
         }
     }
-
+*/
 }
 

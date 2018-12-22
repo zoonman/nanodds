@@ -26,7 +26,7 @@ char b[STR_BUFFER_SIZE];
 enum Mode {
     CW = 0, LSB, USB, AM, FM
 };
-const char *ModeNames[] = {"CW", "LSB", "USB", "AM", "FM"};
+static const char *ModeNames[] = {"CW", "LSB", "USB", "AM", "FM"};
 #pragma pack(pop)
 
 // volatile keyword must be used for global variables used inside interrupt handlers
