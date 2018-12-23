@@ -27,5 +27,5 @@ Buttons
  * Short press - cycles through list of bands
  
 Watch demo on Youtube 
-[![DDSVIDEO](http://img.youtube.com/vi/lzqhjerMn1Q/0.jpg)](http://www.youtube.com/watch?v=lzqhjerMn1Q)
+[![DDSVIDEO](http://img.youtube.com/vi/lzqhjerMn1Q/0.jpg)](https://www.youtube.com/playlist?list=PLTqbxXPJuZrR78shjXX4a-I0lrquxQZ_2)
 
