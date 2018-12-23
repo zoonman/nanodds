@@ -26,6 +26,6 @@ Buttons
 - BAND
  * Short press - cycles through list of bands
  
- 
+Watch demo on Youtube 
 [![DDSVIDEO](http://img.youtube.com/vi/lzqhjerMn1Q/0.jpg)](http://www.youtube.com/watch?v=lzqhjerMn1Q)
 
