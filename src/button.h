@@ -82,8 +82,8 @@ private:
     uint8_t pin;
 
     const uint16_t longPressThreshold = 1000; // ms
-    const uint16_t shortPressThreshold = 100; // ms
-    const uint16_t debounceThreshold = 10; // ms
+    const uint16_t shortPressThreshold = 50; // ms
+    const uint16_t debounceThreshold = 2; // ms
 
     struct State {
         bool isActive = false;

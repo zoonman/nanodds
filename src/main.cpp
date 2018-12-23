@@ -1,11 +1,15 @@
-// #define ENCODER_OPTIMIZE_INTERRUPTS
+#define ENCODER_OPTIMIZE_INTERRUPTS
 #define TWI_FREQ 400000L
 
-#define WIRING 1
-#define CORE_NUM_INTERRUPT 6
-#define CORE_NUM_INTERRUPT 6
 
-// #include <Encoder.h>
+#define TX_BTN_PIN 6
+#define MEM_BTN_PIN 18
+#define MODE_BTN_PIN 17
+#define VFO_BTN_PIN 16
+#define STEP_BTN_PIN 26
+#define BAND_BTN_PIN 27
+
+#include <Encoder.h>
 
 #include <si5351.h>
 
@@ -13,17 +17,22 @@
 #include "bands.h"
 #include "button.h"
 
-long encoderPosition  = 0;
+volatile long encoderPosition  = 0;
 
 //
-// Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
+Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
 // Si5351 si5351;
 
 Bands bands;
 
-SMeter sMeter(A0);
-Button freqEncButton(PD4);
-Button txButton(PD5);
+SMeter sMeter(31);
+Button freqEncButton(22);
+Button txButton(TX_BTN_PIN);
+Button memButton(MEM_BTN_PIN);   // PC3
+Button modeButton(MODE_BTN_PIN); // PC4
+Button vfoButton(VFO_BTN_PIN);   // PC5
+Button stepButton(STEP_BTN_PIN); // PA5
+Button bandButton(BAND_BTN_PIN); // PA4
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -73,40 +82,50 @@ void switchStep() {
     setFrequency();
 }
 
-#define WATERFALL_ROWS 6
-#define WATERFALL_COLS 80
+void switchMode() {
+
+    int led = digitalRead(9);
+    if (led == LOW) {
+        led = HIGH;
+    } else {
+        led = LOW;
+    }
+    digitalWrite(9, led);
+}
+
+#define WATERFALL_ROWS 16
+#define WATERFALL_COLS 160
 uint8_t PXLT[WATERFALL_COLS * WATERFALL_ROWS];
 
 // SETUP -----------------------------------------------------------------------
 void setup() {
 
+    pinMode(9, OUTPUT);
+
     //PORTD
-    pinMode(13, OUTPUT);
-    digitalWrite(13, 0);
-
-
-    /*
+    pinMode(7, OUTPUT);
+    digitalWrite(7, 1);
 
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+
     // put your setup code here, to run once:
-    pinMode(LED_BUILTIN, OUTPUT);
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
     //
     // Serial.begin(9600);
-
+/*
     /*
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
     si5351.output_enable(SI5351_CLK2, 1);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
-* /
+*/
 
     state.frequency = START_F;
 
     setFrequency();
-    // freqEncoder.write(encoderPosition);
+    freqEncoder.write(encoderPosition);
 
     setFrequency();
 
@@ -116,12 +135,22 @@ void setup() {
 
     txButton.setup();
     freqEncButton.setup();
+    modeButton.setup();
+    vfoButton.setup();
+    stepButton.setup();
+    memButton.setup();
+    bandButton.setup();
 
     render();
     sMeter.setup();
 
     freqEncButton.registerShortPressCallback(&switchStep);
-    freqEncButton.registerLongPressCallback(&switchBand);*/
+    freqEncButton.registerLongPressCallback(&switchBand);
+
+    stepButton.registerShortPressCallback(&switchStep);
+    bandButton.registerShortPressCallback(&switchBand);
+
+    modeButton.registerShortPressCallback(&switchMode);
 }
 
 uint8_t row = 0, col = 0;
@@ -129,16 +158,16 @@ uint8_t row = 0, col = 0;
 // MAIN LOOP ===================================================================
 void loop() {
 
-    pinMode(13, OUTPUT);
-    digitalWrite(13, 0);
-
-    /*
     sMeter.loop();
-
     txButton.loop();
     freqEncButton.loop();
+    modeButton.loop();
+    vfoButton.loop();
+    stepButton.loop();
+    memButton.loop();
+    bandButton.loop();
 
-    long int lastEncoderPosition = 1; //freqEncoder.read();
+    long int lastEncoderPosition = freqEncoder.read();
     if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
         freqEncButton.disable();
     }
@@ -177,13 +206,13 @@ void loop() {
         state.tx = true;
         displayMode();
         setFrequency();
+        displaySWR();
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         displayMode();
+        displaySMeter();
         setFrequency();
     }
-
-    //displaySWR();
 
     uint16_t fStep; // kHz
     uint32_t panoFreq;
@@ -202,8 +231,8 @@ void loop() {
         si5351.set_freq(
                 static_cast<uint64_t>(panoFreq + INTERMEDIATE_FREQUENCY)*100ULL,
                 SI5351_CLK2
-        );* /
-        PXLT[col + WATERFALL_COLS * row] = static_cast<uint8_t>(analogRead(A0) / 4);
+        );*/
+        PXLT[col + WATERFALL_COLS * row] = static_cast<uint8_t>(analogRead(5) / 4);
     //}
     if (++col >= WATERFALL_COLS) {
         col = 0;
@@ -219,8 +248,8 @@ void loop() {
                 uint8_t blue = (rgb8 & 0x07);
                 rgb565 = ((red) << 15) | ((green) << 5) | (blue);
                 //tft.drawPixel(x, 68 - y*2 + 1, rgb565);
-                //tft.drawPixel(x, 68 - y*2, rgb565);
-                tft.fillRect(x*2, 68 - y*2, 2, 2, rgb565);
+                tft.drawPixel(x, 75 - y, rgb565);
+                //tft.fillRect(x*2, 68 - y*2, 2, 2, rgb565);
 
             }
             if (--rowIndex == -1) {
@@ -231,6 +260,7 @@ void loop() {
             row = 0;
         }
     }
-*/
+
+
 }
 
