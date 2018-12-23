@@ -23,5 +23,6 @@ Buttons
 - MEM
   * Short press - opens menu with saved frequencies (select the frequency to load)
   * Long press - opens menu with cells to save     
-
+- BAND
+ * Short press - cycles through list of bands
 [![DDSVIDEO](http://img.youtube.com/vi/lzqhjerMn1Q/0.jpg)](http://www.youtube.com/watch?v=lzqhjerMn1Q)
