@@ -1,13 +1,25 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #define TWI_FREQ 400000L
 
+#define TX_BTN_PIN     6
+#define MEM_BTN_PIN   16
+#define MODE_BTN_PIN  17
+#define VFO_BTN_PIN   18
+#define STEP_BTN_PIN  26
+#define BAND_BTN_PIN  27
+#define BACKLIGHT_PIN  9
 
-#define TX_BTN_PIN 6
-#define MEM_BTN_PIN 18
-#define MODE_BTN_PIN 17
-#define VFO_BTN_PIN 16
-#define STEP_BTN_PIN 26
-#define BAND_BTN_PIN 27
+#define SMETER_INPUT_PIN 31
+
+#define SWR_REF_INPUT_PIN 31
+#define SWR_FOR_INPUT_PIN 31
+
+#define WATERFALL_ROWS  16
+#define WATERFALL_COLS 158
+
+#define ENCODER_LEFT_PIN   2
+#define ENCODER_RIGHT_PIN  3
+#define ENCODER_PUSH_PIN  22
 
 #include <Encoder.h>
 
@@ -20,13 +32,13 @@
 volatile long encoderPosition  = 0;
 
 //
-Encoder freqEncoder(2, 3); // pin (2 = D2, 3 = D3)
+Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
+Button freqEncButton(ENCODER_PUSH_PIN);
 // Si5351 si5351;
 
 Bands bands;
 
-SMeter sMeter(31);
-Button freqEncButton(22);
+SMeter sMeter(SMETER_INPUT_PIN);
 Button txButton(TX_BTN_PIN);
 Button memButton(MEM_BTN_PIN);   // PC3
 Button modeButton(MODE_BTN_PIN); // PC4
@@ -38,11 +50,10 @@ void setFrequency() {
     oFrequency = state.frequency;
     /*
     si5351.set_freq(
-            static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
-            SI5351_CLK0
-        );
-
-        */
+        static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
+        SI5351_CLK0
+    );
+    */
     displayFrequency();
     bands.update();
     displayScale(false);
@@ -60,6 +71,7 @@ void render() {
     sMeter.drawLevel(1);
     sMeter.drawLevel(12);
     displayRIT();
+    displayVFO();
     //displaySWR();
 }
 /*
@@ -77,25 +89,73 @@ void switchBand() {
 }
 
 void switchStep() {
+    //
+}
+
+void switchRIT() {
     state.isRIT = !state.isRIT;
     displayRIT();
     setFrequency();
 }
 
-void switchMode() {
-
-    int led = digitalRead(9);
+void switchBacklight() {
+    int led = digitalRead(BACKLIGHT_PIN);
     if (led == LOW) {
         led = HIGH;
     } else {
         led = LOW;
     }
-    digitalWrite(9, led);
+    digitalWrite(BACKLIGHT_PIN, led);
 }
 
-#define WATERFALL_ROWS 16
-#define WATERFALL_COLS 160
-uint8_t PXLT[WATERFALL_COLS * WATERFALL_ROWS];
+void enableCW() {
+    state.mode = CW;
+    displayWPM();
+}
+void enableLSB() {
+    state.mode = LSB;
+}
+void enableUSB() {
+    state.mode = USB;
+}
+void enableAM() {
+    state.mode = AM;
+}
+void enableFM() {
+    state.mode = FM;
+}
+
+void switchModulation() {
+    switch (state.mode) {
+        case CW:
+            enableLSB();
+            break;
+        case LSB:
+            enableUSB();
+            break;
+        case USB:
+            enableAM();
+            break;
+        case AM:
+            enableFM();
+            break;
+        case FM:
+            enableCW();
+            break;
+    }
+    displayModulation();
+}
+
+void switchVFO() {
+    state.isAltFrequency = !state.isAltFrequency;
+    uint32_t t = state.frequency;
+    state.frequency = state.altFrequency;
+    state.altFrequency = t;
+    displayVFO();
+    setFrequency();
+}
+
+volatile uint8_t PXLT[WATERFALL_COLS * WATERFALL_ROWS];
 
 // SETUP -----------------------------------------------------------------------
 void setup() {
@@ -123,6 +183,7 @@ void setup() {
 */
 
     state.frequency = START_F;
+    state.altFrequency = START_F + 1000;
 
     setFrequency();
     freqEncoder.write(encoderPosition);
@@ -144,13 +205,16 @@ void setup() {
     render();
     sMeter.setup();
 
-    freqEncButton.registerShortPressCallback(&switchStep);
+    freqEncButton.registerShortPressCallback(&switchRIT);
     freqEncButton.registerLongPressCallback(&switchBand);
 
     stepButton.registerShortPressCallback(&switchStep);
     bandButton.registerShortPressCallback(&switchBand);
 
-    modeButton.registerShortPressCallback(&switchMode);
+    modeButton.registerShortPressCallback(&switchModulation);
+    modeButton.registerLongPressCallback(&switchBacklight);
+
+    vfoButton.registerShortPressCallback(&switchVFO);
 }
 
 uint8_t row = 0, col = 0;
@@ -248,7 +312,7 @@ void loop() {
                 uint8_t blue = (rgb8 & 0x07);
                 rgb565 = ((red) << 15) | ((green) << 5) | (blue);
                 //tft.drawPixel(x, 68 - y*2 + 1, rgb565);
-                tft.drawPixel(x, 75 - y, rgb565);
+                tft.drawPixel(x+1, SCALE_Y - y - GRID, rgb565);
                 //tft.fillRect(x*2, 68 - y*2, 2, 2, rgb565);
 
             }
@@ -260,7 +324,7 @@ void loop() {
             row = 0;
         }
     }
-
+    tft.drawRect(0, SCALE_Y - WATERFALL_ROWS - GRID, TFT_WIDTH, WATERFALL_ROWS+2, COLOR_DARK_GRAY);
 
 }
 

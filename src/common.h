@@ -38,7 +38,8 @@ volatile uint32_t oFrequency = 0; // Hz
  * State will be used to save current active state
  */
 volatile struct State {
-    uint32_t frequency = 0;
+    uint32_t frequency = START_F;
+    uint32_t altFrequency = START_F;
     uint32_t step = 100;
     /**
      *  Receiver Incremental Tuning
@@ -60,6 +61,7 @@ volatile struct State {
      * Tx?
      */
     bool tx = false;
+    bool isAltFrequency = false;
     /**
      * CW Words per minute
      *
@@ -71,8 +73,8 @@ volatile struct State {
      *
      * dot_ms = 60 * 1000 / (wpm * 50) = 1200 / wpm
      */
-    // uint8_t wpm = 10;
-    uint8_t swr = 10;
+    uint8_t wpm = 10;
+    uint8_t swr = 1;
 } state;
 
 // Memory Cells

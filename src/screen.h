@@ -32,6 +32,7 @@
 #define COLOR_BRIGHT_BLUE     0x1473
 #define COLOR_BAND_BACKGROUND 0x0208
 #define COLOR_GRAY_MEDIUM     0x9CD3
+#define COLOR_DARK_GRAY     0x31a6
 
 
 // display
@@ -166,6 +167,17 @@ void displayModulation() {
     );
 }
 
+void displayVFO() {
+    drawRoundTextBox(
+        TFT_QUOTER_WIDTH + 1,
+        0,
+        TFT_QUOTER_WIDTH-2,
+        15,
+        (state.isAltFrequency ? "VFO B" : "VFO A"),
+        COLOR_GRAY_MEDIUM,
+        COLOR_DARK_GREEN
+    );
+}
 
 void changeFrequencyStep(int8_t offset) {
     if (offset < 0 && state.step > 1) {
@@ -179,6 +191,15 @@ void changeFrequencyStep(int8_t offset) {
     tft.fillRect(110, STEP_Y, 50, 12, ST77XX_BLACK);
     textxy(110, STEP_Y, b, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
     tft.fillRect(0, TFT_HEIGHT / 2 + 3, TFT_WIDTH, 2, ST77XX_BLACK);
+}
+
+void displayWPM() {
+    if (state.mode == CW) {
+        char s[STR_BUFFER_SIZE] = "\0";
+        ltoa(state.wpm, s, 10);
+        textxy(0, RIT_Y, "WPM:", ST77XX_BLUE, ST77XX_BLACK);
+        textxy(30, RIT_Y, s, ST77XX_BLUE, ST77XX_BLACK);
+    }
 }
 
 void displayRIT() {
