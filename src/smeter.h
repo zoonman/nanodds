@@ -2,8 +2,8 @@
 // Created by Philipp Tkachev on 2018-10-25.
 //
 
-#ifndef NANODDS_LEVELS_H
-#define NANODDS_LEVELS_H
+#ifndef NANODDS_SMETER_H
+#define NANODDS_SMETER_H
 
 #define BAR_WIDTH             (uint8_t)14
 
@@ -17,14 +17,16 @@ public:
     };
 
     void setup() {
-        drawLevel(12);
         // add pin listener
 
         // render scale
+        render();
     }
 
     void render() {
         // display bars
+        drawLevel(1);
+        drawLevel(12);
 
         //
     }
@@ -89,9 +91,6 @@ public:
     void loop() {
         int d = analogRead(pin);
         if (pd != d) {
-            // itoa(d, b, 10);
-            // tft.setTextColor(COLOR_BRIGHT_BLUE);
-            // textxy(TFT_WIDTH - 30, TFT_HEIGHT - 30, b, COLOR_BRIGHT_BLUE, ST77XX_BLACK);
             pd = d;
             drawLevel(static_cast<uint8_t>(pd / 92));
         }
@@ -102,4 +101,4 @@ private:
     uint8_t pin;
 };
 
-#endif //NANODDS_LEVELS_H
+#endif //NANODDS_SMETER_H
