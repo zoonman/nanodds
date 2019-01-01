@@ -39,8 +39,9 @@
 #define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
 #define TFT_WIDTH             (uint8_t)160
 #define TFT_QUOTER_WIDTH      (uint8_t)(TFT_WIDTH/4)
-#define GRID                  (uint8_t)(TFT_HEIGHT/16)
-#define SCALE_Y               (uint8_t)(GRID*12)
+#define GRID                  (uint8_t)(TFT_HEIGHT/16) // 8
+#define SCALE_Y               (uint8_t)(GRID*10)
+#define PANO_Y                (uint8_t)(GRID*11 - 3)
 #define STEP_Y                (uint8_t)(GRID*3)
 #define RIT_Y                 (uint8_t)(GRID*8)
 #define SWR_SCALE_Y           (uint8_t)(GRID*10)
@@ -254,7 +255,7 @@ void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
     while (bf >= 0) buf[bf--] = ' ';
 }
 
-#define DELTA 5
+#define DELTA 1
 void displaySWR() {
     // 1..1.5..2..3...inf
     uint8_t swr = (uint8_t)(analogRead(A1) / 4); // 10 = 1, 15 = 1.5, 20 = 2, etc, max is 255, 1024
@@ -324,8 +325,6 @@ void displayScale(bool redraw) {
         scaleTriangle(ST77XX_BLACK);
         scalePosX = newScalePosX;
         scaleTriangle(COLOR_BRIGHT_BLUE);
-
-
     }
 }
 
