@@ -85,7 +85,7 @@ private:
     const uint16_t shortPressThreshold = 50; // ms
     const uint16_t debounceThreshold = 2; // ms
 
-    struct State {
+    struct ButtonState {
         bool isActive = false;
         unsigned long started = 0;
         unsigned long stableStarted = 0;
@@ -99,7 +99,7 @@ private:
     CALLBACK shortPressCallback = nullptr;
     CALLBACK longPressCallback = nullptr;
 
-    State states[2];
+    volatile ButtonState states[2];
 };
 
 
