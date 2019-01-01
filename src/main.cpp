@@ -10,12 +10,11 @@
 #define BACKLIGHT_PIN  9
 
 #define SMETER_INPUT_PIN 31
+#define PANO_INPUT_PIN 5
 
 #define SWR_REF_INPUT_PIN 31
 #define SWR_FOR_INPUT_PIN 31
 
-#define WATERFALL_ROWS  16
-#define WATERFALL_COLS 158
 
 #define ENCODER_LEFT_PIN   2
 #define ENCODER_RIGHT_PIN  3
@@ -28,13 +27,15 @@
 #include "smeter.h"
 #include "bands.h"
 #include "button.h"
+#include "pano.h"
+
 
 volatile long encoderPosition  = 0;
 
 //
 Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button freqEncButton(ENCODER_PUSH_PIN);
-// Si5351 si5351;
+Si5351 si5351;
 
 Bands bands;
 
@@ -45,6 +46,9 @@ Button modeButton(MODE_BTN_PIN); // PC4
 Button vfoButton(VFO_BTN_PIN);   // PC5
 Button stepButton(STEP_BTN_PIN); // PA5
 Button bandButton(BAND_BTN_PIN); // PA4
+
+Pano pano(PANO_INPUT_PIN);
+
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -68,12 +72,25 @@ void render() {
     displayScale(true);
     displayFrequency();
     sMeter.setup();
-    sMeter.drawLevel(1);
-    sMeter.drawLevel(12);
     displayRIT();
     displayVFO();
     //displaySWR();
 }
+
+long readVcc() {
+    long result;
+    // Read 1.1V reference against AVcc
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+    delay(2); // Wait for Vref to settle
+    ADCSRA |= _BV(ADSC); // Convert
+    while (bit_is_set(ADCSRA,ADSC));
+    result = ADCL;
+    result |= ADCH<<8;
+    result = 1126400L / result; // Back-calculate AVcc in mV
+    return result;
+}
+
+
 /*
 TX - must be separate, external 1k
 BAND short, MENU long
@@ -88,9 +105,6 @@ void switchBand() {
     displayScale(true);
 }
 
-void switchStep() {
-    //
-}
 
 void switchRIT() {
     state.isRIT = !state.isRIT;
@@ -105,7 +119,7 @@ void switchBacklight() {
     } else {
         led = LOW;
     }
-    digitalWrite(BACKLIGHT_PIN, led);
+    digitalWrite(BACKLIGHT_PIN, static_cast<uint8_t>(led));
 }
 
 void enableCW() {
@@ -155,7 +169,11 @@ void switchVFO() {
     setFrequency();
 }
 
-volatile uint8_t PXLT[WATERFALL_COLS * WATERFALL_ROWS];
+
+void switchStep() {
+    changeFrequencyStep(1);
+}
+
 
 // SETUP -----------------------------------------------------------------------
 void setup() {
@@ -173,14 +191,16 @@ void setup() {
     tft.setRotation(1);
     //
     // Serial.begin(9600);
-/*
+
     /*
+
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
     si5351.output_enable(SI5351_CLK2, 1);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
-*/
+
+     */
 
     state.frequency = START_F;
     state.altFrequency = START_F + 1000;
@@ -194,6 +214,8 @@ void setup() {
 
     render();
 
+    pano.setup();
+
     txButton.setup();
     freqEncButton.setup();
     modeButton.setup();
@@ -202,7 +224,6 @@ void setup() {
     memButton.setup();
     bandButton.setup();
 
-    render();
     sMeter.setup();
 
     freqEncButton.registerShortPressCallback(&switchRIT);
@@ -215,116 +236,97 @@ void setup() {
     modeButton.registerLongPressCallback(&switchBacklight);
 
     vfoButton.registerShortPressCallback(&switchVFO);
+    stepButton.registerShortPressCallback(&switchStep);
 }
 
-uint8_t row = 0, col = 0;
 
 // MAIN LOOP ===================================================================
 void loop() {
 
-    sMeter.loop();
     txButton.loop();
-    freqEncButton.loop();
-    modeButton.loop();
-    vfoButton.loop();
-    stepButton.loop();
-    memButton.loop();
-    bandButton.loop();
-
-    long int lastEncoderPosition = freqEncoder.read();
-    if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
-        freqEncButton.disable();
-    }
-    if (lastEncoderPosition > encoderPosition + 2) {
-        if (freqEncButton.isPressed()) {
-            changeFrequencyStep(-1);
-        } else if (state.isRIT) {
-            if (state.RITFrequency > -9999) {
-                state.RITFrequency--;
-            }
-            displayRIT();
-        } else {
-            state.frequency -= state.step;
-        }
-        encoderPosition = lastEncoderPosition;
-    } else if (lastEncoderPosition < encoderPosition - 2) {
-        if (freqEncButton.isPressed()) {
-            changeFrequencyStep(1);
-        } else if (state.isRIT) {
-            if (state.RITFrequency < 9999) {
-                state.RITFrequency++;
-            }
-            displayRIT();
-        } else {
-            state.frequency += state.step;
-        }
-        encoderPosition = lastEncoderPosition;
-    }
-
-
-    if (oFrequency != state.frequency) {
-        setFrequency();
-    }
 
     if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
+        tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
         displayMode();
         setFrequency();
-        displaySWR();
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
+        // getting back in rx
+        tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
         displayMode();
         displaySMeter();
         setFrequency();
+        displayScale(true);
+        sMeter.drawLevel(1);
+        sMeter.drawLevel(12);
     }
+    yield();
 
-    uint16_t fStep; // kHz
-    uint32_t panoFreq;
-
-    if (state.band != BANDS) {
-        fStep = BandsBounds[state.band].width * 1000 / WATERFALL_COLS;
-        panoFreq = BandsBounds[state.band].start * 1000;
+    if (state.tx) {
+        displaySWR();
     } else {
-        panoFreq = state.frequency - 100000;
-        fStep = 625;
-    }
 
-    //for (uint8_t col = 0; col < TFT_WIDTH; col++) {
-        panoFreq = panoFreq + fStep * col;
-    /*
-        si5351.set_freq(
-                static_cast<uint64_t>(panoFreq + INTERMEDIATE_FREQUENCY)*100ULL,
-                SI5351_CLK2
-        );*/
-        PXLT[col + WATERFALL_COLS * row] = static_cast<uint8_t>(analogRead(5) / 4);
-    //}
-    if (++col >= WATERFALL_COLS) {
-        col = 0;
+        sMeter.loop();
+        freqEncButton.loop();
+        modeButton.loop();
+        vfoButton.loop();
+        stepButton.loop();
+        memButton.loop();
+        bandButton.loop();
 
-        int8_t rowIndex = row;
-        for (uint8_t y = 0; y < WATERFALL_ROWS; y++) {
-            // render it
-            for (uint8_t x = 0;x < WATERFALL_COLS; x++) {
-                uint8_t rgb8 = PXLT[x + WATERFALL_COLS * rowIndex];
-                uint16_t rgb565;
-                uint8_t red = (rgb8 & 0xC0) >> 6;
-                uint8_t green = (rgb8 & 0x38) >> 3;
-                uint8_t blue = (rgb8 & 0x07);
-                rgb565 = ((red) << 15) | ((green) << 5) | (blue);
-                //tft.drawPixel(x, 68 - y*2 + 1, rgb565);
-                tft.drawPixel(x+1, SCALE_Y - y - GRID, rgb565);
-                //tft.fillRect(x*2, 68 - y*2, 2, 2, rgb565);
+        long int lastEncoderPosition = freqEncoder.read();
+        if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
+            freqEncButton.disable();
+        }
+        if (lastEncoderPosition > encoderPosition + 2) {
+            if (freqEncButton.isPressed()) {
+                changeFrequencyStep(-1);
+            } else if (state.isRIT) {
+                if (state.RITFrequency > -9999) {
+                    state.RITFrequency--;
+                }
+                displayRIT();
+            } else {
+                state.frequency -= state.step;
 
             }
-            if (--rowIndex == -1) {
-                rowIndex = WATERFALL_ROWS - 1;
-            };
-        }
-        if (++row >= WATERFALL_ROWS) {
-            row = 0;
-        }
-    }
-    tft.drawRect(0, SCALE_Y - WATERFALL_ROWS - GRID, TFT_WIDTH, WATERFALL_ROWS+2, COLOR_DARK_GRAY);
+            encoderPosition = lastEncoderPosition;
+        } else if (lastEncoderPosition < encoderPosition - 2) {
+            if (freqEncButton.isPressed()) {
+                changeFrequencyStep(1);
+            } else if (state.isRIT) {
+                if (state.RITFrequency < 9999) {
+                    state.RITFrequency++;
+                }
+                displayRIT();
+            } else {
+                state.frequency += state.step;
 
+            }
+            encoderPosition = lastEncoderPosition;
+        }
+
+
+        if (state.frequency > 30000000) {
+            state.frequency = 100000;
+        } else if (state.frequency < 100000) {
+            state.frequency = 30000000;
+        }
+
+        if (oFrequency != state.frequency) {
+            setFrequency();
+        }
+
+        pano.loop();
+        /*
+        si5351.set_freq(
+            static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
+            SI5351_CLK2
+        );
+        */
+    }
+
+    yield();
 }
 
