@@ -39,25 +39,36 @@ public:
             panoFreq = state.frequency - 100000;
             fStep = 625;
         }
+        int rv = analogRead(this->pin);
+        // tft.
 
-        this->PXLT[this->col + WATERFALL_COLS * this->row] = analogRead(this->pin);
+        //itoa(rv, b, 10);
+        sprintf(b, "%4d", rv);
+
+        textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
+
+        this->PXLT[this->col + WATERFALL_COLS * this->row] = this->convertColor(rv * 50);
         if (++this->col >= WATERFALL_COLS) {
             this->col = 0;
 
             int8_t rowIndex = this->row;
+            //tft.drawRGBBitmap()
+            tft.startWrite();
             for (uint8_t y = 0; y < WATERFALL_ROWS; y++) {
                 // render it
                 for (uint8_t x = 0;x < WATERFALL_COLS; x++) {
-                    tft.drawPixel(
+                    // tft.writePixel()
+                    tft.writePixel(
                             x,
                             PANO_Y + WATERFALL_ROWS - y,
-                            this->convertColor(this->PXLT[x + WATERFALL_COLS * rowIndex])
+                            this->PXLT[x + WATERFALL_COLS * rowIndex]
                     );
                 }
                 if (--rowIndex == -1) {
                     rowIndex = WATERFALL_ROWS - 1;
                 };
             }
+            tft.endWrite();
             if (++this->row >= WATERFALL_ROWS) {
                 this->row = 0;
             }

@@ -1,5 +1,6 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #define TWI_FREQ 400000L
+#define USE_FAST_PINIO
 
 #define TX_BTN_PIN     6
 #define MEM_BTN_PIN   16
@@ -28,6 +29,7 @@
 #include "bands.h"
 #include "button.h"
 #include "pano.h"
+#include "swr.h"
 
 
 volatile long encoderPosition  = 0;
@@ -48,16 +50,16 @@ Button stepButton(STEP_BTN_PIN); // PA5
 Button bandButton(BAND_BTN_PIN); // PA4
 
 Pano pano(PANO_INPUT_PIN);
-
+SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 void setFrequency() {
     oFrequency = state.frequency;
-    /*
+
     si5351.set_freq(
         static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
         SI5351_CLK0
     );
-    */
+
     displayFrequency();
     bands.update();
     displayScale(false);
@@ -192,14 +194,14 @@ void setup() {
     //
     // Serial.begin(9600);
 
-    /*
+
 
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
     si5351.output_enable(SI5351_CLK2, 1);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
-
+/*
      */
 
     state.frequency = START_F;
@@ -225,6 +227,7 @@ void setup() {
     bandButton.setup();
 
     sMeter.setup();
+    swrMeter.setup();
 
     freqEncButton.registerShortPressCallback(&switchRIT);
     freqEncButton.registerLongPressCallback(&switchBand);
@@ -250,6 +253,7 @@ void loop() {
         tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
         displayMode();
         setFrequency();
+        swrMeter.render();
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         // getting back in rx
@@ -260,11 +264,12 @@ void loop() {
         displayScale(true);
         sMeter.drawLevel(1);
         sMeter.drawLevel(12);
+
     }
     yield();
 
     if (state.tx) {
-        displaySWR();
+        swrMeter.loop();
     } else {
 
         sMeter.loop();
@@ -318,13 +323,13 @@ void loop() {
             setFrequency();
         }
 
-        pano.loop();
-        /*
+        // pano.loop();
+
         si5351.set_freq(
             static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
             SI5351_CLK2
         );
-        */
+
     }
 
     yield();
