@@ -24,10 +24,10 @@ Buttons
   * Short press - opens menu with saved frequencies (select the frequency to load)
   * Long press - opens menu with cells to save     
 - BAND
- * Short press - cycles through list of bands
- *  
+  * Short press - cycles through list of bands
+  *  
 - STEP
- * Changes step from 1 Hz to 1 MHz in power of 10th. 
+  * Changes step from 1 Hz to 1 MHz in power of 10th. 
  
 Watch demo on Youtube
  
