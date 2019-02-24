@@ -7,7 +7,7 @@
 
 #include "Adafruit_GFX.h"
 #include <Adafruit_ST7735.h>
-#include <Fonts/FreeSansBold15pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h>
 #include <avr/pgmspace.h>
 
 #include "common.h"
@@ -109,7 +109,7 @@ void displayFrequency() {
         }
     }
     tft.setTextSize(1);
-    tft.setFont(&FreeSansBold15pt7b);
+    tft.setFont(&FreeSansBold12pt7b);
 
     int16_t xof = FREQUENCY_X + (state.frequency < 1E+7 ? 10 : 0);
     for (int8_t i = 0; i < STR_BUFFER_SIZE-1; i++) {

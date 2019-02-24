@@ -21,43 +21,36 @@ public:
         this->pin = pin;
     }
 
-
     void setup() {
         // just a stub
     }
 
     uint32_t loop() {
-
-
-        uint16_t fStep; // kHz
+        uint16_t fStep; // Hz
         uint32_t panoFreq;
 
         if (state.band != BANDS) {
             fStep = BandsBounds[state.band].width * 1000 / WATERFALL_COLS;
             panoFreq = BandsBounds[state.band].start * 1000;
         } else {
-            panoFreq = state.frequency - 100000;
-            fStep = 625;
+            panoFreq = state.frequency - 50000;
+            fStep = 100000 / WATERFALL_COLS;
         }
         int rv = analogRead(this->pin);
-        // tft.
-
-        //itoa(rv, b, 10);
+        // debug
         sprintf(b, "%4d", rv);
-
         textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
-
+        //
         this->PXLT[this->col + WATERFALL_COLS * this->row] = this->convertColor(rv * 50);
         if (++this->col >= WATERFALL_COLS) {
             this->col = 0;
 
             int8_t rowIndex = this->row;
-            //tft.drawRGBBitmap()
+            // optimized pixel transfer over SPI
             tft.startWrite();
             for (uint8_t y = 0; y < WATERFALL_ROWS; y++) {
                 // render it
                 for (uint8_t x = 0;x < WATERFALL_COLS; x++) {
-                    // tft.writePixel()
                     tft.writePixel(
                             x,
                             PANO_Y + WATERFALL_ROWS - y,

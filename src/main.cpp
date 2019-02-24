@@ -21,6 +21,9 @@
 #define ENCODER_RIGHT_PIN  3
 #define ENCODER_PUSH_PIN  22
 
+#include <Wire.h>
+
+
 #include <Encoder.h>
 
 #include <si5351.h>
@@ -192,17 +195,25 @@ void setup() {
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
     //
-    // Serial.begin(9600);
-
+    Serial.begin(9600);
+    Serial.println("TWBR");
+    Serial.println(TWBR);
+    Serial.println(TWSR);
+    // TWBR
+    //Wire.
 
 
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
+    Wire.setClock(400000);
+    Serial.println("--");
+    Serial.println(TWBR);
+    Serial.println(TWSR);
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
-    si5351.output_enable(SI5351_CLK2, 1);
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
 /*
-     */
+       si5351.output_enable(SI5351_CLK2, 1);
+    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
+  */
 
     state.frequency = START_F;
     state.altFrequency = START_F + 1000;
@@ -322,8 +333,6 @@ void loop() {
         if (oFrequency != state.frequency) {
             setFrequency();
         }
-
-        // pano.loop();
 
         si5351.set_freq(
             static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
