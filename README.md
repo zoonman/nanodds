@@ -35,6 +35,7 @@ Watch demo on Youtube
 
 ## Dependencies
 
+* PlatformIO.org
 * https://github.com/PaulStoffregen/Encoder
 * https://github.com/adafruit/Adafruit-ST7735-Library
 * https://github.com/etherkit/Si5351Arduino

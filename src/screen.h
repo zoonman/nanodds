@@ -8,6 +8,7 @@
 #include "Adafruit_GFX.h"
 #include <Adafruit_ST7735.h>
 #include "FreeSansBold15pt7b.h"
+#include <avr/io.h>
 #include <avr/pgmspace.h>
 
 #include "common.h"
@@ -65,6 +66,12 @@ void textxy(uint16_t x, uint16_t y, const char *text) {
 void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {
     tft.setTextColor(c, b);
     textxy(x, y, text);
+}
+
+void textxy(uint16_t x, uint16_t y, const __FlashStringHelper *text, uint16_t c, uint16_t b) {
+    tft.setTextColor(c, b);
+    tft.setCursor(x, y);
+    tft.print(text);
 }
 
 void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *text, uint16_t c, uint16_t bg) {
@@ -139,7 +146,7 @@ void displayFrequency() {
 
     strcpy(oldFreq, dFreq);
     tft.setFont();
-    textxy(0, STEP_Y, ("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(0, STEP_Y, PSTR("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
 }
 
 
@@ -170,9 +177,9 @@ void displayModulation() {
 
 void displayVFO() {
     drawRoundTextBox(
-        TFT_QUOTER_WIDTH + 1,
+        TFT_QUOTER_WIDTH + 1u,
         0,
-        TFT_QUOTER_WIDTH-2,
+        TFT_QUOTER_WIDTH - 2u,
         15,
         (state.isAltFrequency ? "VFO B" : "VFO A"),
         COLOR_GRAY_MEDIUM,

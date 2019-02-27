@@ -25,6 +25,7 @@
 
 
 #include <Encoder.h>
+#include <EEPROM.h>
 
 #include <si5351.h>
 
@@ -34,6 +35,17 @@
 #include "pano.h"
 #include "swr.h"
 
+#ifndef __FLASH
+#warning __FLASH not defined here
+
+#define PSTR_INIT( NAME, CONST_STR ) \
+namespace _pstr_shadow_vars { static const char NAME[] PROGMEM { CONST_STR }; } \
+constexpr PGM_P NAME { &_pstr_shadow_vars::NAME[0] };
+
+#define AS_FLASH_STRING_HELPER( P )  (reinterpret_cast<const __FlashStringHelper * >(P))
+
+
+#endif
 
 volatile long encoderPosition  = 0;
 
@@ -179,11 +191,12 @@ void switchStep() {
     changeFrequencyStep(1);
 }
 
+auto loopMS = millis();
 
 // SETUP -----------------------------------------------------------------------
 void setup() {
 
-    pinMode(9, OUTPUT);
+    pinMode(BACKLIGHT_PIN, OUTPUT);
 
     //PORTD
     pinMode(7, OUTPUT);
@@ -251,11 +264,14 @@ void setup() {
 
     vfoButton.registerShortPressCallback(&switchVFO);
     stepButton.registerShortPressCallback(&switchStep);
+
 }
 
 
 // MAIN LOOP ===================================================================
 void loop() {
+
+    analogWrite(BACKLIGHT_PIN, 180);
 
     txButton.loop();
 
@@ -282,58 +298,67 @@ void loop() {
     if (state.tx) {
         swrMeter.loop();
     } else {
+        auto currentMS = millis();
 
-        sMeter.loop();
-        freqEncButton.loop();
-        modeButton.loop();
-        vfoButton.loop();
-        stepButton.loop();
-        memButton.loop();
-        bandButton.loop();
 
-        long int lastEncoderPosition = freqEncoder.read();
-        if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
-            freqEncButton.disable();
-        }
-        if (lastEncoderPosition > encoderPosition + 2) {
-            if (freqEncButton.isPressed()) {
-                changeFrequencyStep(-1);
-            } else if (state.isRIT) {
-                if (state.RITFrequency > -9999) {
-                    state.RITFrequency--;
-                }
-                displayRIT();
-            } else {
-                state.frequency -= state.step;
+        if (loopMS != currentMS) {
 
+
+            sMeter.loop();
+            freqEncButton.loop();
+            modeButton.loop();
+            vfoButton.loop();
+            stepButton.loop();
+            memButton.loop();
+            bandButton.loop();
+
+            long int lastEncoderPosition = freqEncoder.read();
+            if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
+                freqEncButton.disable();
             }
-            encoderPosition = lastEncoderPosition;
-        } else if (lastEncoderPosition < encoderPosition - 2) {
-            if (freqEncButton.isPressed()) {
-                changeFrequencyStep(1);
-            } else if (state.isRIT) {
-                if (state.RITFrequency < 9999) {
-                    state.RITFrequency++;
+            if (lastEncoderPosition > encoderPosition + 2) {
+                if (freqEncButton.isPressed()) {
+                    changeFrequencyStep(-1);
+                } else if (state.isRIT) {
+                    if (state.RITFrequency > -9999) {
+                        state.RITFrequency--;
+                    }
+                    displayRIT();
+                } else {
+                    state.frequency -= state.step;
+
                 }
-                displayRIT();
-            } else {
-                state.frequency += state.step;
+                encoderPosition = lastEncoderPosition;
+            } else if (lastEncoderPosition < encoderPosition - 2) {
+                if (freqEncButton.isPressed()) {
+                    changeFrequencyStep(1);
+                } else if (state.isRIT) {
+                    if (state.RITFrequency < 9999) {
+                        state.RITFrequency++;
+                    }
+                    displayRIT();
+                } else {
+                    state.frequency += state.step;
 
+                }
+                encoderPosition = lastEncoderPosition;
             }
-            encoderPosition = lastEncoderPosition;
+
+
+            if (state.frequency > 30000000) {
+                state.frequency = 100000;
+            } else if (state.frequency < 100000) {
+                state.frequency = 30000000;
+            }
+
+            if (oFrequency != state.frequency) {
+                setFrequency();
+            }
+
+            loopMS = currentMS;
+            // settle
+            yield();
         }
-
-
-        if (state.frequency > 30000000) {
-            state.frequency = 100000;
-        } else if (state.frequency < 100000) {
-            state.frequency = 30000000;
-        }
-
-        if (oFrequency != state.frequency) {
-            setFrequency();
-        }
-
         si5351.set_freq(
             static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
             SI5351_CLK2
