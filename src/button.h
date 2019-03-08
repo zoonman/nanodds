@@ -5,9 +5,9 @@
 #ifndef NANODDS_BUTTON_H
 #define NANODDS_BUTTON_H
 
-typedef void (*CALLBACK) ();
-
 #include <Arduino.h>
+#include "callback.h"
+
 class Button {
 public:
     explicit Button(uint8_t pin) {

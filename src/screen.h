@@ -61,6 +61,10 @@ volatile uint16_t scalePosX = 0;
 void textxy(uint16_t x, uint16_t y, const char *text) {
     tft.setCursor(x, y);
     tft.print(text);
+
+
+    tft.setCursor(50, 50);
+    tft.print(F("SuperTest"));
 }
 
 void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {

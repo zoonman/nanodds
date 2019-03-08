@@ -34,6 +34,8 @@
 #include "button.h"
 #include "pano.h"
 #include "swr.h"
+#include "Action.h"
+#include "Menu.h"
 
 #ifndef __FLASH
 #warning __FLASH not defined here
@@ -66,6 +68,8 @@ Button bandButton(BAND_BTN_PIN); // PA4
 
 Pano pano(PANO_INPUT_PIN);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
+
+Menu menu;
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -193,6 +197,29 @@ void switchStep() {
 
 auto loopMS = millis();
 
+void buildMenu() {
+    Action exitAction;
+    exitAction.name = F("<< Exit");
+
+    Action memoryAction;
+    memoryAction.name = F("Memory");
+    Menu memoryMenu;
+    Action saveToNewCell;
+    saveToNewCell.name =F("Save to a new cell");
+
+    memoryMenu.addAction(&saveToNewCell);
+    Action eraseCell;
+    eraseCell.name =F("Erase data");
+    memoryMenu.addAction(&eraseCell);
+
+
+    memoryAction.setSubmenu(&memoryMenu);
+
+    menu.addAction(&memoryAction);
+    menu.addAction(&exitAction);
+
+}
+
 // SETUP -----------------------------------------------------------------------
 void setup() {
 
@@ -265,6 +292,26 @@ void setup() {
     vfoButton.registerShortPressCallback(&switchVFO);
     stepButton.registerShortPressCallback(&switchStep);
 
+    buildMenu();
+}
+auto menuPreviousState = menu.isActive();
+
+
+void renderTXUI() {
+    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
+    displayMode();
+    setFrequency();
+    swrMeter.render();
+}
+
+void renderRXUI() {
+    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
+    displayMode();
+    displaySMeter();
+    setFrequency();
+    displayScale(true);
+    sMeter.drawLevel(1);
+    sMeter.drawLevel(12);
 }
 
 
@@ -275,25 +322,26 @@ void loop() {
 
     txButton.loop();
 
+
+
     if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
-        tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
-        displayMode();
-        setFrequency();
-        swrMeter.render();
+        if (!menu.isActive()) {
+            renderTXUI();
+        }
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         // getting back in rx
-        tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
-        displayMode();
-        displaySMeter();
-        setFrequency();
-        displayScale(true);
-        sMeter.drawLevel(1);
-        sMeter.drawLevel(12);
-
+        if (!menu.isActive()) {
+            renderRXUI();
+        }
     }
     yield();
+
+    if (menu.isActive() != menuPreviousState) {
+        // we should render UI=
+        menuPreviousState = menu.isActive();
+    }
 
     if (state.tx) {
         swrMeter.loop();
@@ -323,7 +371,9 @@ void loop() {
                     if (state.RITFrequency > -9999) {
                         state.RITFrequency--;
                     }
-                    displayRIT();
+                    if (!menu.isActive()) {
+                        displayRIT();
+                    }
                 } else {
                     state.frequency -= state.step;
 
@@ -336,7 +386,9 @@ void loop() {
                     if (state.RITFrequency < 9999) {
                         state.RITFrequency++;
                     }
-                    displayRIT();
+                    if (!menu.isActive()) {
+                        displayRIT();
+                    }
                 } else {
                     state.frequency += state.step;
 
