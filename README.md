@@ -32,7 +32,7 @@ Buttons
 Use MEM to exit w/o Save *1s
 --
 [Memory]
-    Save current as new cell
+    Save selectedActionIndex as new cell
     [3.760300, LSB]
         Load
         Overwrite with Current

@@ -5,6 +5,9 @@
 #ifndef NANODDS_CALLBACK_H
 #define NANODDS_CALLBACK_H
 
+/**
+ * Callable
+ */
 typedef void (*CALLBACK) ();
 
 #endif //NANODDS_CALLBACK_H

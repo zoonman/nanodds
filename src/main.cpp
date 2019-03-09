@@ -25,7 +25,7 @@
 
 
 #include <Encoder.h>
-#include <EEPROM.h>
+// #include <EEPROM.h>
 
 #include <si5351.h>
 
@@ -34,18 +34,16 @@
 #include "button.h"
 #include "pano.h"
 #include "swr.h"
-#include "Action.h"
-#include "Menu.h"
+#include "menu/Action.h"
+#include "menu/Menu.h"
 
 #ifndef __FLASH
-#warning __FLASH not defined here
 
 #define PSTR_INIT( NAME, CONST_STR ) \
 namespace _pstr_shadow_vars { static const char NAME[] PROGMEM { CONST_STR }; } \
 constexpr PGM_P NAME { &_pstr_shadow_vars::NAME[0] };
 
 #define AS_FLASH_STRING_HELPER( P )  (reinterpret_cast<const __FlashStringHelper * >(P))
-
 
 #endif
 
@@ -69,7 +67,9 @@ Button bandButton(BAND_BTN_PIN); // PA4
 Pano pano(PANO_INPUT_PIN);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
+Display display(&tft);
 Menu menu;
+Menu *currentMenu = &menu;
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -78,10 +78,11 @@ void setFrequency() {
         static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
         SI5351_CLK0
     );
-
-    displayFrequency();
-    bands.update();
-    displayScale(false);
+    if (!currentMenu->isActive()) {
+        displayFrequency();
+        bands.update();
+        displayScale(false);
+    }
 }
 
 void render() {
@@ -127,11 +128,6 @@ void switchBand() {
 }
 
 
-void switchRIT() {
-    state.isRIT = !state.isRIT;
-    displayRIT();
-    setFrequency();
-}
 
 void switchBacklight() {
     int led = digitalRead(BACKLIGHT_PIN);
@@ -195,31 +191,94 @@ void switchStep() {
     changeFrequencyStep(1);
 }
 
-auto loopMS = millis();
+void memClick() {
+    if (!currentMenu->isActive()) {
+        currentMenu->setActive(true);
+    }
+    // menu.select();
+    currentMenu->render();
+}
 
-void buildMenu() {
-    Action exitAction;
-    exitAction.name = F("<< Exit");
+void exitMenu() {
+    currentMenu->exit();
+}
 
-    Action memoryAction;
-    memoryAction.name = F("Memory");
-    Menu memoryMenu;
-    Action saveToNewCell;
-    saveToNewCell.name =F("Save to a new cell");
-
-    memoryMenu.addAction(&saveToNewCell);
-    Action eraseCell;
-    eraseCell.name =F("Erase data");
-    memoryMenu.addAction(&eraseCell);
-
-
-    memoryAction.setSubmenu(&memoryMenu);
-
-    menu.addAction(&memoryAction);
-    menu.addAction(&exitAction);
+void saveStateToACell() {
 
 }
 
+void displayAbout() {
+    display.textxy(50, 50, F("Visit http://zoonman.com/projects/ssb85/ for details"), COLOR_BRIGHT_BLUE, ST7735_BLACK);
+}
+
+void buildMenu() {
+    // inititialize pointer of the current menu to our top-level menu
+
+    // save reference to current menu
+    menu.setCurrentMenu(currentMenu);
+
+    menu.setDisplay(&display);
+
+    Action exitAction(F("<< Exit"));
+    exitAction.setCallback(&exitMenu);
+
+    Action memoryAction(F("Memory"));
+
+    Menu memoryMenu;
+
+    Action saveToNewCell(F("Save to a new cell"));
+    memoryMenu.setDisplay(&display);
+    memoryMenu.addAction(&saveToNewCell);
+    memoryMenu.setParentMenu(&menu);
+    memoryMenu.setCurrentMenu(currentMenu);
+    for (size_t m = 0;m < 2; m++) {
+        auto s1 = new String("Cool ");
+        *s1 += m;
+        auto *n = new Action(s1);
+        memoryMenu.addAction(n);
+    }
+
+    // todo: has to cycle through list of memory cells and display them
+    // todo: how to typecast names properly?
+    Action eraseCell(F("Erase data"));
+    memoryMenu.addAction(&eraseCell);
+    memoryMenu.addAction(&exitAction);
+
+    memoryAction.setSubMenu(&memoryMenu);
+    memoryAction.setCurrentMenu(currentMenu);
+
+
+
+    menu.addAction(&memoryAction);
+
+    Action cwAction(F("CW"));
+    menu.addAction(&cwAction);
+
+    Action swrAction(F("SWR"));
+    menu.addAction(&swrAction);
+
+    Action settingsAction(F("Settings"));
+    menu.addAction(&settingsAction);
+
+    Action aboutAction(F("About"));
+    aboutAction.setCallback(&displayAbout);
+    menu.addAction(&aboutAction);
+
+    menu.addAction(&exitAction);
+}
+
+
+void encoderClickHandler() {
+    if (currentMenu->isActive()) {
+        currentMenu->select();
+    } else {
+        state.isRIT = !state.isRIT;
+        displayRIT();
+        setFrequency();
+    }
+}
+
+auto loopMS = millis();
 // SETUP -----------------------------------------------------------------------
 void setup() {
 
@@ -240,8 +299,7 @@ void setup() {
     Serial.println(TWBR);
     Serial.println(TWSR);
     // TWBR
-    //Wire.
-
+    // Wire.
 
     si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     Wire.setClock(400000);
@@ -251,7 +309,7 @@ void setup() {
     si5351.output_enable(SI5351_CLK0, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
 /*
-       si5351.output_enable(SI5351_CLK2, 1);
+    si5351.output_enable(SI5351_CLK2, 1);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
   */
 
@@ -280,7 +338,7 @@ void setup() {
     sMeter.setup();
     swrMeter.setup();
 
-    freqEncButton.registerShortPressCallback(&switchRIT);
+    freqEncButton.registerShortPressCallback(&encoderClickHandler);
     freqEncButton.registerLongPressCallback(&switchBand);
 
     stepButton.registerShortPressCallback(&switchStep);
@@ -292,9 +350,11 @@ void setup() {
     vfoButton.registerShortPressCallback(&switchVFO);
     stepButton.registerShortPressCallback(&switchStep);
 
+    memButton.registerShortPressCallback(&memClick);
+
     buildMenu();
 }
-auto menuPreviousState = menu.isActive();
+auto menuPreviousState = currentMenu->isActive();
 
 
 void renderTXUI() {
@@ -326,21 +386,21 @@ void loop() {
 
     if (txButton.isPressed() && state.tx == 0) {
         state.tx = true;
-        if (!menu.isActive()) {
+        if (!currentMenu->isActive()) {
             renderTXUI();
         }
     } else if (txButton.isReleased() && state.tx != 0) {
         state.tx = false;
         // getting back in rx
-        if (!menu.isActive()) {
+        if (!currentMenu->isActive()) {
             renderRXUI();
         }
     }
     yield();
 
-    if (menu.isActive() != menuPreviousState) {
+    if (currentMenu->isActive() != menuPreviousState) {
         // we should render UI=
-        menuPreviousState = menu.isActive();
+        menuPreviousState = currentMenu->isActive();
     }
 
     if (state.tx) {
@@ -348,9 +408,8 @@ void loop() {
     } else {
         auto currentMS = millis();
 
-
+        // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
         if (loopMS != currentMS) {
-
 
             sMeter.loop();
             freqEncButton.loop();
@@ -365,13 +424,15 @@ void loop() {
                 freqEncButton.disable();
             }
             if (lastEncoderPosition > encoderPosition + 2) {
-                if (freqEncButton.isPressed()) {
+                if (currentMenu->isActive()) {
+                    currentMenu->down();
+                } else if (freqEncButton.isPressed()) {
                     changeFrequencyStep(-1);
                 } else if (state.isRIT) {
                     if (state.RITFrequency > -9999) {
                         state.RITFrequency--;
                     }
-                    if (!menu.isActive()) {
+                    if (!currentMenu->isActive()) {
                         displayRIT();
                     }
                 } else {
@@ -380,13 +441,15 @@ void loop() {
                 }
                 encoderPosition = lastEncoderPosition;
             } else if (lastEncoderPosition < encoderPosition - 2) {
-                if (freqEncButton.isPressed()) {
+                if (currentMenu->isActive()) {
+                    currentMenu->up();
+                } else if (freqEncButton.isPressed()) {
                     changeFrequencyStep(1);
                 } else if (state.isRIT) {
                     if (state.RITFrequency < 9999) {
                         state.RITFrequency++;
                     }
-                    if (!menu.isActive()) {
+                    if (!currentMenu->isActive()) {
                         displayRIT();
                     }
                 } else {
@@ -411,10 +474,13 @@ void loop() {
             // settle
             yield();
         }
-        si5351.set_freq(
-            static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
-            SI5351_CLK2
-        );
+
+        if (!currentMenu->isActive()) {
+            si5351.set_freq(
+                static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
+                SI5351_CLK2
+            );
+        }
 
     }
 

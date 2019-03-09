@@ -7,24 +7,37 @@
 #ifndef NANODDS_MENU_H
 #define NANODDS_MENU_H
 
-#define MAX_MENU_ACTIONS 10
+#define MAX_MENU_ACTIONS (size_t)10
+#define MAX_MENU_ACTIONS_PER_SCREEN (ST7735_TFTHEIGHT_128 / MENU_ITEM_HEIGHT - 1)
 
 #include "Action.h"
+#include <Adafruit_ST7735.h>
 
 class Action;
 
 class Menu {
 public:
+
     virtual void up();
     virtual void down();
-    virtual void addAction(Action *action);
+    void render();
+    void select();
+    void exit();
+    void addAction(Action *action);
+    void setParentMenu(Menu *pm);
+    void setCurrentMenu(Menu* pm);
     bool isActive();
     void setActive(bool value);
+    void setDisplay(Display *display);
 private:
     Action* actions[MAX_MENU_ACTIONS];
+    Display *display;
+    Menu *parentMenu = nullptr;
+    // should hold pointer to a project wide menu
+    Menu *currentMenu = nullptr;
     size_t length = 0;
     bool active = false;
-    size_t current = 0;
+    size_t selectedActionIndex = 0;
 };
 
 

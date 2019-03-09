@@ -5,13 +5,15 @@
 #ifndef NANODDS_SCREEN_H
 #define NANODDS_SCREEN_H
 
-#include "Adafruit_GFX.h"
+#include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 #include "FreeSansBold15pt7b.h"
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
 #include "common.h"
+#include "colors.h"
+#include "menu/Action.h"
 
 // For the breakout, you can use any 2 or 3 pins
 // These pins will also work for the 1.8" TFT shield
@@ -24,16 +26,7 @@
 #define TFT_DC                5  // A0, Data/Command pin # (PB1)
 
 
-// colors
-#define COLOR_BRIGHT_GREEN    0x96C0
-#define COLOR_DARK_GREEN      0x29C0
-#define COLOR_DARK_RED        0x6800
-#define COLOR_MEDIUM_RED      0x9041
-#define COLOR_BRIGHT_RED      0xE800
-#define COLOR_BRIGHT_BLUE     0x1473
-#define COLOR_BAND_BACKGROUND 0x0208
-#define COLOR_GRAY_MEDIUM     0x9CD3
-#define COLOR_DARK_GRAY     0x31a6
+
 
 
 // display
@@ -48,11 +41,6 @@
 #define SWR_SCALE_Y           (uint8_t)(GRID*10)
 #define SWR_SCALE_TY          (uint8_t)(SWR_SCALE_Y - GRID)
 
-struct Bounds {
-    int16_t x, y;
-    uint16_t w, h;
-};
-
 // Init Display
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 volatile uint16_t scalePosX = 0;
@@ -64,7 +52,7 @@ void textxy(uint16_t x, uint16_t y, const char *text) {
 
 
     tft.setCursor(50, 50);
-    tft.print(F("SuperTest"));
+    tft.print(String("SuperTest"));
 }
 
 void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {
@@ -72,7 +60,7 @@ void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {
     textxy(x, y, text);
 }
 
-void textxy(uint16_t x, uint16_t y, const __FlashStringHelper *text, uint16_t c, uint16_t b) {
+void textxy(uint16_t x, uint16_t y, String text, uint16_t c, uint16_t b) {
     tft.setTextColor(c, b);
     tft.setCursor(x, y);
     tft.print(text);
@@ -85,6 +73,15 @@ void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *te
     tft.getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
     textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
 }
+
+void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, String text, uint16_t c, uint16_t bg) {
+    tft.fillRoundRect(x, y, w, h, 2, bg);
+    tft.drawRoundRect(x, y, w, h, 2, c);
+    Bounds t = {};
+    tft.getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
+    textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
+}
+
 
 char oldFreq[STR_BUFFER_SIZE] = "\0";
 
