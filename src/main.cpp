@@ -36,6 +36,7 @@
 #include "swr.h"
 #include "menu/Action.h"
 #include "menu/Menu.h"
+#include "Storage.h"
 
 #ifndef __FLASH
 
@@ -70,6 +71,7 @@ SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 Display display(&tft);
 Menu menu;
 Menu *currentMenu = &menu;
+Storage *storage;
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -204,23 +206,27 @@ void exitMenu() {
 }
 
 void saveStateToACell() {
-
+    storage->saveState(const_cast<State *>(&state), 0);
 }
 
 void displayAbout() {
-    display.textxy(50, 50, F("Visit http://zoonman.com/projects/ssb85/ for details"), COLOR_BRIGHT_BLUE, ST7735_BLACK);
+    display.tft->fillScreen(ST7735_BLACK);
+    display.textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
+    display.textxy(20, 20, F("Version: 1.0.0"), COLOR_MEDIUM_RED, ST7735_BLACK);
+    display.textxy(74, 30, F("2019-03-09"), COLOR_MEDIUM_RED, ST7735_BLACK);
+    display.textxy(1, 50, F("Details & updates online:"), COLOR_GRAY_MEDIUM, ST7735_BLACK);
+    display.textxy(1, 65, F("zoonman.com/projects/ssb85"), COLOR_BRIGHT_BLUE, ST7735_BLACK);
+    display.textxy(0, 110, F("Built by Philipp Tkachev"), COLOR_DARK_GREEN, ST7735_BLACK);
 }
 
 void buildMenu() {
     // inititialize pointer of the current menu to our top-level menu
 
     // save reference to current menu
-    menu.setCurrentMenu(currentMenu);
+    menu.setCurrentMenu(&currentMenu);
 
     menu.setDisplay(&display);
 
-    Action exitAction(F("<< Exit"));
-    exitAction.setCallback(&exitMenu);
 
     Action memoryAction(F("Memory"));
 
@@ -230,7 +236,7 @@ void buildMenu() {
     memoryMenu.setDisplay(&display);
     memoryMenu.addAction(&saveToNewCell);
     memoryMenu.setParentMenu(&menu);
-    memoryMenu.setCurrentMenu(currentMenu);
+    memoryMenu.setCurrentMenu(&currentMenu);
     for (size_t m = 0;m < 2; m++) {
         auto s1 = new String("Cool ");
         *s1 += m;
@@ -242,10 +248,14 @@ void buildMenu() {
     // todo: how to typecast names properly?
     Action eraseCell(F("Erase data"));
     memoryMenu.addAction(&eraseCell);
-    memoryMenu.addAction(&exitAction);
+
+    Action memExitAction(F("Exit"));
+    memExitAction.setCallback(&exitMenu);
+
+    memoryMenu.addAction(&memExitAction);
 
     memoryAction.setSubMenu(&memoryMenu);
-    memoryAction.setCurrentMenu(currentMenu);
+    memoryAction.setCurrentMenu(&currentMenu);
 
 
 
@@ -264,7 +274,9 @@ void buildMenu() {
     aboutAction.setCallback(&displayAbout);
     menu.addAction(&aboutAction);
 
-    menu.addAction(&exitAction);
+    Action menuExitAction(F("Exit"));
+    menuExitAction.setCallback(&exitMenu);
+    menu.addAction(&menuExitAction);
 }
 
 
@@ -353,6 +365,8 @@ void setup() {
     memButton.registerShortPressCallback(&memClick);
 
     buildMenu();
+
+    storage = new Storage(0x50);
 }
 auto menuPreviousState = currentMenu->isActive();
 
@@ -423,6 +437,7 @@ void loop() {
             if (lastEncoderPosition != encoderPosition && freqEncButton.isPressed()) {
                 freqEncButton.disable();
             }
+            // turning the knob counter-clockwise
             if (lastEncoderPosition > encoderPosition + 2) {
                 if (currentMenu->isActive()) {
                     currentMenu->down();
@@ -441,6 +456,7 @@ void loop() {
                 }
                 encoderPosition = lastEncoderPosition;
             } else if (lastEncoderPosition < encoderPosition - 2) {
+                // turning the knob clockwise
                 if (currentMenu->isActive()) {
                     currentMenu->up();
                 } else if (freqEncButton.isPressed()) {
@@ -458,7 +474,6 @@ void loop() {
                 }
                 encoderPosition = lastEncoderPosition;
             }
-
 
             if (state.frequency > 30000000) {
                 state.frequency = 100000;

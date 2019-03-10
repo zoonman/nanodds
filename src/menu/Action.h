@@ -36,7 +36,7 @@ public:
     void render();
 
     void setSubMenu(Menu *menu);
-    void setCurrentMenu(Menu* menu);
+    void setCurrentMenu(Menu** menu);
 
     void setActive(bool status);
 
@@ -51,7 +51,7 @@ public:
 private:
     CALLBACK cb = nullptr;
     Menu *subMenu = nullptr;
-    Menu *currentMenu = nullptr;
+    Menu **currentMenu = nullptr;
     Menu *parentMenu = nullptr;
     Display *display;
     size_t index = 0;

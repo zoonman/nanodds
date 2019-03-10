@@ -25,7 +25,7 @@ public:
     void exit();
     void addAction(Action *action);
     void setParentMenu(Menu *pm);
-    void setCurrentMenu(Menu* pm);
+    void setCurrentMenu(Menu** pm);
     bool isActive();
     void setActive(bool value);
     void setDisplay(Display *display);
@@ -34,7 +34,7 @@ private:
     Display *display;
     Menu *parentMenu = nullptr;
     // should hold pointer to a project wide menu
-    Menu *currentMenu = nullptr;
+    Menu **currentMenu = nullptr;
     size_t length = 0;
     bool active = false;
     size_t selectedActionIndex = 0;

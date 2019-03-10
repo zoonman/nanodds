@@ -74,7 +74,7 @@ void Menu::setParentMenu(Menu *pm) {
  * We change pointer to a pointer
  * @param pm
  */
-void Menu::setCurrentMenu(Menu* ptcm) {
+void Menu::setCurrentMenu(Menu** ptcm) {
     this->currentMenu = ptcm;
 }
 
@@ -84,7 +84,8 @@ void Menu::exit() {
     if (this->parentMenu == nullptr) {
         return;
     }
-    *(this->currentMenu) = *(this->parentMenu);
-    (this->currentMenu)->setActive(true);
+    *this->currentMenu = this->parentMenu;
+    (*(*this->currentMenu)).setActive(true);
+    (*(*this->currentMenu)).render();
 }
 

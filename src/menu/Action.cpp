@@ -14,7 +14,7 @@ void Action::setSubMenu(Menu *menu) {
     subMenu = menu;
 }
 
-void Action::setCurrentMenu(Menu* menu) {
+void Action::setCurrentMenu(Menu** menu) {
     currentMenu = menu;
 }
 
@@ -32,8 +32,8 @@ void Action::setCallback(CALLBACK callback) {
 
 void Action::select() {
     if (this->hasSubMenu()) {
-        this->parentMenu = this->currentMenu;
-        *this->currentMenu = *this->subMenu;
+        this->parentMenu = *this->currentMenu;
+        *this->currentMenu = this->subMenu;
         this->subMenu->setActive(true);
         // this->currentMenu->render();
     }

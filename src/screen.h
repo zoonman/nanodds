@@ -49,10 +49,6 @@ volatile uint16_t scalePosX = 0;
 void textxy(uint16_t x, uint16_t y, const char *text) {
     tft.setCursor(x, y);
     tft.print(text);
-
-
-    tft.setCursor(50, 50);
-    tft.print(String("SuperTest"));
 }
 
 void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {
@@ -147,7 +143,7 @@ void displayFrequency() {
 
     strcpy(oldFreq, dFreq);
     tft.setFont();
-    textxy(0, STEP_Y, PSTR("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+    textxy(0, STEP_Y, F("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
 }
 
 
