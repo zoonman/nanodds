@@ -14,12 +14,16 @@
 // 64kb - Place to store cells
 // rest is reserved
 
+
 class Storage {
+    const size_t settingsAddr = 0x0010;
+    const size_t currentStateAddr = 0x1000;
+    const size_t cellsAddr = 0x2000;
 public:
     Storage(uint8_t deviceAddress);
 
-    void saveState(State *state, size_t cell);
-    void loadState(State *state);
+    void saveState(volatile State *state, size_t cell);
+    void loadState(volatile State *state, size_t cell);
 
 private:
     byte read(size_t addr);

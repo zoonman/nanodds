@@ -71,7 +71,7 @@ SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 Display display(&tft);
 Menu menu;
 Menu *currentMenu = &menu;
-Storage *storage;
+Storage *storage = new Storage(0x50);
 
 void setFrequency() {
     oFrequency = state.frequency;
@@ -197,7 +197,6 @@ void memClick() {
     if (!currentMenu->isActive()) {
         currentMenu->setActive(true);
     }
-    // menu.select();
     currentMenu->render();
 }
 
@@ -206,7 +205,10 @@ void exitMenu() {
 }
 
 void saveStateToACell() {
-    storage->saveState(const_cast<State *>(&state), 0);
+    display.tft->fillScreen(ST7735_BLACK);
+    display.textxy(20, 70, F("Saving..."), ST7735_WHITE, ST7735_BLACK);
+    storage->saveState(&state, 0);
+    exitMenu();
 }
 
 void displayAbout() {
@@ -233,6 +235,7 @@ void buildMenu() {
     Menu memoryMenu;
 
     Action saveToNewCell(F("Save to a new cell"));
+    saveToNewCell.setCallback(&saveStateToACell);
     memoryMenu.setDisplay(&display);
     memoryMenu.addAction(&saveToNewCell);
     memoryMenu.setParentMenu(&menu);
@@ -256,8 +259,6 @@ void buildMenu() {
 
     memoryAction.setSubMenu(&memoryMenu);
     memoryAction.setCurrentMenu(&currentMenu);
-
-
 
     menu.addAction(&memoryAction);
 
@@ -291,7 +292,14 @@ void encoderClickHandler() {
 }
 
 auto loopMS = millis();
-// SETUP -----------------------------------------------------------------------
+
+
+/****************************************************************
+ *
+ *   SETUP
+ *
+ ****************************************************************/
+
 void setup() {
 
     pinMode(BACKLIGHT_PIN, OUTPUT);
@@ -362,11 +370,15 @@ void setup() {
     vfoButton.registerShortPressCallback(&switchVFO);
     stepButton.registerShortPressCallback(&switchStep);
 
-    memButton.registerShortPressCallback(&memClick);
 
+    memButton.registerShortPressCallback(&memClick);
+    //delay(100);
     buildMenu();
 
-    storage = new Storage(0x50);
+    delay(10);
+    //storage->loadState(&state, 0);
+    delay(10);
+
 }
 auto menuPreviousState = currentMenu->isActive();
 

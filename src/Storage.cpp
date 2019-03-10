@@ -5,12 +5,12 @@
 #include "Storage.h"
 
 Storage::Storage(uint8_t deviceAddress) : deviceAddress(deviceAddress) {
-    Wire.begin();
+    //Wire.begin(deviceAddress);
 }
 
 byte Storage::read(size_t addr) {
     byte data = 0x00;
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(this->deviceAddress);
     Wire.write(addr>>8);
     Wire.write(addr & 0xFF);
     Wire.endTransmission();
@@ -26,7 +26,7 @@ byte Storage::read(size_t addr) {
 }
 
 void Storage::write(size_t addr, byte data) {
-    Wire.beginTransmission(deviceAddress);
+    Wire.beginTransmission(this->deviceAddress);
     Wire.write(addr>>8);
     Wire.write(addr & 0xFF);
     Wire.write(data);
@@ -34,9 +34,21 @@ void Storage::write(size_t addr, byte data) {
     delay(5);// let's wait a moment
 }
 
-void Storage::saveState(State *state, size_t cell) {
+void Storage::saveState(volatile State *state, size_t cell) {
+    auto * ptr = (unsigned char *)&state;
     for (size_t a = 0;a < sizeof(State);a++) {
         byte b;
-        b = reinterpret_cast<byte>(state + a);
+        b = *ptr;
+        this->write(this->currentStateAddr + a, b);
+        ptr++;
+    }
+}
+
+void Storage::loadState(volatile State *state, size_t cell) {
+    /**/
+    for (size_t a = 0;a < sizeof(State);a++) {
+        auto * ptr = (unsigned char *)&state + a;
+        // *ptr = this->read(this->currentStateAddr + a);
+
     }
 }
