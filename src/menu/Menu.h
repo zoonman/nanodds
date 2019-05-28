@@ -7,7 +7,7 @@
 #ifndef NANODDS_MENU_H
 #define NANODDS_MENU_H
 
-#define MAX_MENU_ACTIONS (size_t)10
+#define MAX_MENU_ACTIONS (size_t)7
 #define MAX_MENU_ACTIONS_PER_SCREEN (ST7735_TFTHEIGHT_128 / MENU_ITEM_HEIGHT - 1)
 
 #include "Action.h"
@@ -30,7 +30,7 @@ public:
     void setActive(bool value);
     void setDisplay(Display *display);
 private:
-    Action* actions[MAX_MENU_ACTIONS];
+    Action** actions;
     Display *display;
     Menu *parentMenu = nullptr;
     // should hold pointer to a project wide menu

@@ -15,6 +15,10 @@
  */
 struct State {
     uint32_t frequency = 0;
+    uint32_t iFrequency = 8000000;// max:-5.69dB 7.998928MHz
+
+    uint32_t ssbOffset = 1500;
+    uint32_t cwOffset = 800;
     uint32_t altFrequency = 0;
     uint32_t step = 100;
     /**
@@ -45,7 +49,8 @@ struct State {
      * can be defined in terms of multiples of the dot length.
      * The word PARIS is used because this is the length of a typical word
      * in English plain text, it has a total length of 50 dot lengths.
-     * If the word PARIS can be sent ten times in a minute using normal Morse code timing then the code speed is 10 WPM.
+     * If the word PARIS can be sent ten times in a minute using
+     * normal Morse code timing then the code speed is 10 WPM.
      *
      * dot_ms = 60 * 1000 / (wpm * 50) = 1200 / wpm
      */

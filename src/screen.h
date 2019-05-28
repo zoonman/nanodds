@@ -5,6 +5,8 @@
 #ifndef NANODDS_SCREEN_H
 #define NANODDS_SCREEN_H
 
+
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
 #include "FreeSansBold15pt7b.h"
@@ -21,13 +23,15 @@
 //  #define TFT_RST               8  // D8, Reset pin # (optional, pass -1 if unused), PB0
 // #define TFT_DC                9  // A0, Data/Command pin # (PB1)
 
-#define TFT_CS                10 // D10, Chip select pin #, SS
-#define TFT_RST               4  // D8, Reset pin # (optional, pass -1 if unused), PB0
-#define TFT_DC                5  // A0, Data/Command pin # (PB1)
+#define TFT_CS                10 // D10, Chip select pin #44, SS, PB4 pinout http://wiki.microduinoinc.com/Microduino-Module_Core%2B
+#define TFT_RST               4  // D4, Reset pin #40 (optional, pass -1 if unused), PB0
+#define TFT_DC                 5  // A0, Data/Command pin #41 (PB1)
 
 
+// #define TFT_CS  PB4
+// PB1
 
-
+// L:42, H:99, E:?FF?
 
 // display
 #define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
@@ -41,6 +45,7 @@
 #define SWR_SCALE_Y           (uint8_t)(GRID*10)
 #define SWR_SCALE_TY          (uint8_t)(SWR_SCALE_Y - GRID)
 
+// setClockDivider()
 // Init Display
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 volatile uint16_t scalePosX = 0;

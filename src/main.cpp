@@ -1,14 +1,19 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
 #define TWI_FREQ 400000L
-#define USE_FAST_PINIO
 
-#define TX_BTN_PIN     6
+#define USE_FAST_PINIO
+// #define SPI_DEFAULT_FREQ 4000000
+
+
+// http://wiki.microduinoinc.com/Microduino-Module_Core%2B
+#define TX_BTN_PIN     6 // (INT2/AIN0)PB2
 #define MEM_BTN_PIN   16
 #define MODE_BTN_PIN  17
 #define VFO_BTN_PIN   18
 #define STEP_BTN_PIN  26
 #define BAND_BTN_PIN  27
 #define BACKLIGHT_PIN  9
+#define TFT_BACKLIGHT_PIN  7
 
 #define SMETER_INPUT_PIN 31
 #define PANO_INPUT_PIN 5
@@ -21,13 +26,16 @@
 #define ENCODER_RIGHT_PIN  3
 #define ENCODER_PUSH_PIN  22
 
+#define UPPER_RX_BOUND 30000000
+#define LOWER_RX_BOUND 500000
+
 #include <Wire.h>
 
-
 #include <Encoder.h>
-// #include <EEPROM.h>
+#include <EEPROM.h>
 
 #include <si5351.h>
+#include <wiring_private.h>
 
 #include "smeter.h"
 #include "bands.h"
@@ -37,19 +45,13 @@
 #include "menu/Action.h"
 #include "menu/Menu.h"
 #include "Storage.h"
+#include "ui/Spinner.h"
 
-#ifndef __FLASH
 
-#define PSTR_INIT( NAME, CONST_STR ) \
-namespace _pstr_shadow_vars { static const char NAME[] PROGMEM { CONST_STR }; } \
-constexpr PGM_P NAME { &_pstr_shadow_vars::NAME[0] };
-
-#define AS_FLASH_STRING_HELPER( P )  (reinterpret_cast<const __FlashStringHelper * >(P))
-
-#endif
-
-volatile long encoderPosition  = 0;
-
+volatile long setupCalls = 0;
+volatile long encoderPosition = 0;
+unsigned long loopMS;
+bool menuPreviousState = false;
 //
 Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button freqEncButton(ENCODER_PUSH_PIN);
@@ -65,20 +67,47 @@ Button vfoButton(VFO_BTN_PIN);   // PC5
 Button stepButton(STEP_BTN_PIN); // PA5
 Button bandButton(BAND_BTN_PIN); // PA4
 
-Pano pano(PANO_INPUT_PIN);
+Pano pano(PANO_INPUT_PIN, &si5351);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 Display display(&tft);
 Menu menu;
 Menu *currentMenu = &menu;
 Storage *storage = new Storage(0x50);
+Spinner *spinner = new Spinner(&display);
+
+
+int64_t getIntermediateFrequency() {
+    int64_t fOffset;
+    switch (state.mode) {
+        case LSB:
+            fOffset = state.ssbOffset;
+            break;
+        case USB:
+            fOffset = -state.ssbOffset;
+            break;
+        case CW:
+            fOffset = -state.cwOffset;
+            break;
+        default:
+            fOffset = 0;
+    }
+    return state.iFrequency + fOffset;
+}
 
 void setFrequency() {
     oFrequency = state.frequency;
-
+/*
     si5351.set_freq(
-        static_cast<uint64_t>(state.frequency + INTERMEDIATE_FREQUENCY + (state.isRIT && !state.tx ? state.RITFrequency : 0))*100ULL,
-        SI5351_CLK0
+            static_cast<uint64_t>(state.frequency  )*100ULL,
+            SI5351_CLK1
+    );
+
+*/
+    si5351.set_freq(
+            static_cast<uint64_t>(state.frequency + getIntermediateFrequency() +
+                                  (state.isRIT && !state.tx ? state.RITFrequency : 0)) * 100ULL,
+            SI5351_CLK0
     );
     if (!currentMenu->isActive()) {
         displayFrequency();
@@ -101,20 +130,6 @@ void render() {
     //displaySWR();
 }
 
-long readVcc() {
-    long result;
-    // Read 1.1V reference against AVcc
-    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-    delay(2); // Wait for Vref to settle
-    ADCSRA |= _BV(ADSC); // Convert
-    while (bit_is_set(ADCSRA,ADSC));
-    result = ADCL;
-    result |= ADCH<<8;
-    result = 1126400L / result; // Back-calculate AVcc in mV
-    return result;
-}
-
-
 /*
 TX - must be separate, external 1k
 BAND short, MENU long
@@ -128,7 +143,6 @@ void switchBand() {
     bands.next();
     displayScale(true);
 }
-
 
 
 void switchBacklight() {
@@ -145,15 +159,19 @@ void enableCW() {
     state.mode = CW;
     displayWPM();
 }
+
 void enableLSB() {
     state.mode = LSB;
 }
+
 void enableUSB() {
     state.mode = USB;
 }
+
 void enableAM() {
     state.mode = AM;
 }
+
 void enableFM() {
     state.mode = FM;
 }
@@ -177,6 +195,7 @@ void switchModulation() {
             break;
     }
     displayModulation();
+    setFrequency();
 }
 
 void switchVFO() {
@@ -205,20 +224,59 @@ void exitMenu() {
 }
 
 void saveStateToACell() {
-    display.tft->fillScreen(ST7735_BLACK);
+    display.clear();
     display.textxy(20, 70, F("Saving..."), ST7735_WHITE, ST7735_BLACK);
+
     storage->saveState(&state, 0);
     exitMenu();
 }
 
 void displayAbout() {
-    display.tft->fillScreen(ST7735_BLACK);
+    display.clear();
     display.textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
     display.textxy(20, 20, F("Version: 1.0.0"), COLOR_MEDIUM_RED, ST7735_BLACK);
-    display.textxy(74, 30, F("2019-03-09"), COLOR_MEDIUM_RED, ST7735_BLACK);
+    display.textxy(74, 30, F("2019-05-07"), COLOR_MEDIUM_RED, ST7735_BLACK);
     display.textxy(1, 50, F("Details & updates online:"), COLOR_GRAY_MEDIUM, ST7735_BLACK);
     display.textxy(1, 65, F("zoonman.com/projects/ssb85"), COLOR_BRIGHT_BLUE, ST7735_BLACK);
     display.textxy(0, 110, F("Built by Philipp Tkachev"), COLOR_DARK_GREEN, ST7735_BLACK);
+}
+
+void displayIntermediateFrequencySettings() {
+    display.clear();
+    display.textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
+    spinner->setLeft(10);
+    spinner->setTop(50);
+    spinner->setWidth(100);
+    spinner->setHeight(18);
+    spinner->setFocus(true);
+    spinner->setVisibility(true);
+
+    // if (freqEncoder.interruptArgs)
+}
+
+class App {
+    private:
+    Task **tasks;
+    size_t length = 0;
+    size_t nextTask = 0;
+
+    void AddWidget(Task *task) {
+        size_t nl = ++this->length;
+        this->tasks = (Task * *)realloc(this->tasks, nl * sizeof(*task));
+        this->tasks[this->length-1] = task;
+    }
+
+    void loop() {
+        if (--this->nextTask > -1) {
+            this->tasks[this->nextTask]->loop();
+        } else {
+            this->nextTask = this->length;
+        }
+    }
+};
+
+void displaySettingsMenu() {
+
 }
 
 void buildMenu() {
@@ -229,30 +287,30 @@ void buildMenu() {
 
     menu.setDisplay(&display);
 
-
-    Action memoryAction(F("Memory"));
+    Action memoryAction(MsgMemory);
 
     Menu memoryMenu;
 
-    Action saveToNewCell(F("Save to a new cell"));
+    Action saveToNewCell(MsgTest);
     saveToNewCell.setCallback(&saveStateToACell);
     memoryMenu.setDisplay(&display);
     memoryMenu.addAction(&saveToNewCell);
     memoryMenu.setParentMenu(&menu);
     memoryMenu.setCurrentMenu(&currentMenu);
-    for (size_t m = 0;m < 2; m++) {
+    /*
+    for (size_t m = 0; m < 2; m++) {
         auto s1 = new String("Cool ");
         *s1 += m;
         auto *n = new Action(s1);
         memoryMenu.addAction(n);
-    }
+    }*/
 
     // todo: has to cycle through list of memory cells and display them
     // todo: how to typecast names properly?
-    Action eraseCell(F("Erase data"));
+    Action eraseCell(MsgTest);// F("Erase data")
     memoryMenu.addAction(&eraseCell);
 
-    Action memExitAction(F("Exit"));
+    Action memExitAction(MsgMemory);// F("Exit")
     memExitAction.setCallback(&exitMenu);
 
     memoryMenu.addAction(&memExitAction);
@@ -262,20 +320,49 @@ void buildMenu() {
 
     menu.addAction(&memoryAction);
 
-    Action cwAction(F("CW"));
+    Action cwAction(MsgCW);// F("CW")
     menu.addAction(&cwAction);
 
-    Action swrAction(F("SWR"));
+    Action swrAction(MsgSWR); //
     menu.addAction(&swrAction);
+    Action ifAction(MsgIF);// F("Intermediate Frequency")
+    ifAction.setCallback(&displayIntermediateFrequencySettings);
 
-    Action settingsAction(F("Settings"));
+    Action ssbOffsetAction(MsgSSBOffset);
+
+    Action ddsCalibrationAction(MsgDDSCalibration);
+    Action swrCalibrationAction(MsgSWRCalibration);
+
+    // Settings
+    Action settingsAction(MsgSettings);
+    Menu settingsMenu;
+    settingsMenu.setDisplay(&display);
+    settingsMenu.setParentMenu(&menu);
+    settingsMenu.setCurrentMenu(&currentMenu);
+    settingsMenu.addAction(&ifAction);
+    settingsMenu.addAction(&ssbOffsetAction);
+    settingsMenu.addAction(&ddsCalibrationAction);
+    settingsMenu.addAction(&swrCalibrationAction);
+
+    Action settingsExitAction(MsgExit);
+    settingsExitAction.setCallback(&exitMenu);
+    settingsMenu.addAction(&settingsExitAction);
+
+    settingsAction.setSubMenu(&settingsMenu);
+    settingsAction.setCurrentMenu(&currentMenu);
+
     menu.addAction(&settingsAction);
+/*
+  */
 
-    Action aboutAction(F("About"));
+    // About
+    Action aboutAction(MsgAbout);
     aboutAction.setCallback(&displayAbout);
+
     menu.addAction(&aboutAction);
 
-    Action menuExitAction(F("Exit"));
+    // Exit
+    Action menuExitAction(MsgExit);
     menuExitAction.setCallback(&exitMenu);
     menu.addAction(&menuExitAction);
 }
@@ -291,8 +378,6 @@ void encoderClickHandler() {
     }
 }
 
-auto loopMS = millis();
-
 
 /****************************************************************
  *
@@ -301,38 +386,58 @@ auto loopMS = millis();
  ****************************************************************/
 
 void setup() {
+    setupCalls++;
+    // delay(1000);
+
+    pinMode(28, INPUT);
+    analogReference(INTERNAL2V56);
 
     pinMode(BACKLIGHT_PIN, OUTPUT);
+    digitalWrite(BACKLIGHT_PIN, HIGH);
 
-    //PORTD
-    pinMode(7, OUTPUT);
-    digitalWrite(7, 1);
+
+    pinMode(TFT_BACKLIGHT_PIN, OUTPUT);
+
+
+
+
+    // analogWrite(BACKLIGHT_PIN, 250);
+    si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
+
 
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
 
     // put your setup code here, to run once:
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
+
+    loopMS = millis();
     //
-    Serial.begin(9600);
-    Serial.println("TWBR");
-    Serial.println(TWBR);
-    Serial.println(TWSR);
+    //
+    //Serial.begin(9600);
+    //Serial.println("TWBR");
+    //Serial.println(TWBR);
+    //Serial.println(TWSR);
     // TWBR
     // Wire.
 
-    si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
-    Wire.setClock(400000);
-    Serial.println("--");
-    Serial.println(TWBR);
-    Serial.println(TWSR);
+//    Wire.setClock(400000);
+    //Serial.println("--");
+    //Serial.println(TWBR);
+    //Serial.println(TWSR);
     si5351.output_enable(SI5351_CLK0, 1);
+    si5351.output_enable(SI5351_CLK1, 1);
+    si5351.output_enable(SI5351_CLK1, 1);
     si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
-/*
-    si5351.output_enable(SI5351_CLK2, 1);
+    si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_4MA);
     si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
-  */
 
+
+    si5351.set_freq(
+            static_cast<uint64_t>(getIntermediateFrequency()) * 100,
+            SI5351_CLK1
+    );
+/**/
     state.frequency = START_F;
     state.altFrequency = START_F + 1000;
 
@@ -379,19 +484,24 @@ void setup() {
     //storage->loadState(&state, 0);
     delay(10);
 
+    menuPreviousState = currentMenu->isActive();
+
+
+    // turn on led
+    digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
+
 }
-auto menuPreviousState = currentMenu->isActive();
 
 
 void renderTXUI() {
-    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
+    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
     setFrequency();
     swrMeter.render();
 }
 
 void renderRXUI() {
-    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT-FREQUENCY_Y, ST77XX_BLACK);
+    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
     displaySMeter();
     setFrequency();
@@ -404,10 +514,9 @@ void renderRXUI() {
 // MAIN LOOP ===================================================================
 void loop() {
 
-    analogWrite(BACKLIGHT_PIN, 180);
 
+    // return;
     txButton.loop();
-
 
 
     if (txButton.isPressed() && state.tx == 0) {
@@ -487,10 +596,10 @@ void loop() {
                 encoderPosition = lastEncoderPosition;
             }
 
-            if (state.frequency > 30000000) {
-                state.frequency = 100000;
-            } else if (state.frequency < 100000) {
-                state.frequency = 30000000;
+            if (state.frequency > UPPER_RX_BOUND) {
+                state.frequency = LOWER_RX_BOUND;
+            } else if (state.frequency < LOWER_RX_BOUND) {
+                state.frequency = UPPER_RX_BOUND;
             }
 
             if (oFrequency != state.frequency) {
@@ -503,14 +612,42 @@ void loop() {
         }
 
         if (!currentMenu->isActive()) {
-            si5351.set_freq(
-                static_cast<uint64_t>(pano.loop() + INTERMEDIATE_FREQUENCY)*100ULL,
-                SI5351_CLK2
-            );
+            /*si5351.set_freq(
+                    static_cast<uint64_t>(pano.loop() + 16000000) * 100ULL,
+                    SI5351_CLK2
+            );*/
+            pano.loop();
         }
+        yield();
 
+
+        //analogReadResolution(10);
+        // A4 = PA3 = ADC3
+        ADMUX = ADMUX | (uint8_t)3; // select ADC3 input
+        ADMUX = ADMUX | ((uint8_t)1 << REFS0) | ((uint8_t) 1<< REFS1); // pull 2.65 V REF
+        sbi(ADCSRA, ADEN); // enable ADC
+
+        cbi(PRR0, PRADC); // enable power reduction ADC
+        sbi(ADCSRA, ADSC); // turn on ADC
+        while (bit_is_set(ADCSRA, ADSC));
+        uint8_t low  = ADCL;
+        uint8_t high = ADCH;
+
+        uint16_t voltage = ((high << 8) | low) & 0x3FF;
+        auto av = (float)voltage / 37.5;
+        auto str1 = String(av, 2);
+        str1.concat(" V");
+        display.textxy(50, 60, &str1, ST77XX_CYAN, ST7735_BLACK);
     }
-
+/*
+ * Render pool
+ *
+ * registers rendering elements
+ * has flag to re-render
+ * cycles through loop
+ * renders one component per cycle
+ *
+ * **/
     yield();
 }
 

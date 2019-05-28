@@ -1,13 +1,15 @@
 //
 // Created by Philipp Tkachev on 2019-03-08.
 //
-
+#include <stdlib.h>
 #include "Menu.h"
 
 void Menu::addAction(Action *action) {
     action->setIndex(this->length);
     action->setDisplay(this->display);
-    this->actions[this->length++] = action;
+    size_t nl = ++this->length;
+    this->actions = (Action * *)realloc(this->actions, nl * sizeof(*action));
+    this->actions[this->length-1] = action;
 }
 
 void Menu::setActive(bool value) {
@@ -43,19 +45,19 @@ void Menu::down() {
 }
 
 void Menu::render() {
-    this->display->tft->fillScreen(ST77XX_BLACK);
+    this->display->clear();
     this->display->drawRoundTextBox(
             0,
             0,
             160,
             MENU_ITEM_HEIGHT,
-            F("Menu"),
+            MsgMenu,
             ST7735_WHITE,
             COLOR_DARK_GRAY
     );
     // @todo scrolling
     if (this->length < MAX_MENU_ACTIONS_PER_SCREEN) {
-        for (uint8_t i = 0; i < this->length; ++i) {
+        for (size_t i = 0; i < this->length; ++i) {
             this->actions[i]->setActive(this->selectedActionIndex == i);
             this->actions[i]->render();
         }

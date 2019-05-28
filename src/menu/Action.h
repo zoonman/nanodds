@@ -8,8 +8,9 @@
 #ifndef NANODDS_ACTION_H
 #define NANODDS_ACTION_H
 
-#include "../Display.h"
+#include "../ui/Display.h"
 #include "../callback.h"
+#include "../Mode.h"
 
 #define MENU_ITEM_HEIGHT (uint8_t)16
 
@@ -17,19 +18,14 @@ class Menu;
 
 class Action {
 public:
-    explicit Action(const __FlashStringHelper *name);
+    explicit Action(Message m);
 
-    explicit Action(String *name);
+    // explicit Action(String *name);
 
-
-    const __FlashStringHelper *name = nullptr;
-    String *sname = nullptr;
+    Message message = MsgMenu;
 
     uint8_t height = MENU_ITEM_HEIGHT;
-    bool checkable = false;
     bool isActive = false;
-    bool isChecked = false;
-    bool isEnabled = true;
 
     bool hasSubMenu();
 
@@ -55,7 +51,6 @@ private:
     Menu *parentMenu = nullptr;
     Display *display;
     size_t index = 0;
-    bool isString = false;
 };
 
 #endif //NANODDS_ACTION_H

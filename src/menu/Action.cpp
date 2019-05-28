@@ -14,7 +14,7 @@ void Action::setSubMenu(Menu *menu) {
     subMenu = menu;
 }
 
-void Action::setCurrentMenu(Menu** menu) {
+void Action::setCurrentMenu(Menu **menu) {
     currentMenu = menu;
 }
 
@@ -44,35 +44,22 @@ void Action::select() {
 
 void Action::render() {
     this->display->tft->setTextSize(1);
-    if (this->isString) {
-        this->display->drawRoundTextBox(
-                0,
-                static_cast<uint8_t>(this->index * this->height) + this->height,
-                150,
-                this->height,
-                this->sname,
-                this->isActive ? COLOR_BRIGHT_GREEN : COLOR_GRAY_MEDIUM,
-                this->isActive ? COLOR_DARK_GREEN : ST77XX_BLACK
-        );
-    } else {
-        this->display->drawRoundTextBox(
+    this->display->drawRoundTextBox(
             0,
             static_cast<uint8_t>(this->index * this->height) + this->height,
             150,
             this->height,
-            this->name,
+            this->message,
             this->isActive ? COLOR_BRIGHT_GREEN : COLOR_GRAY_MEDIUM,
             this->isActive ? COLOR_DARK_GREEN : ST77XX_BLACK
-        );
-    }
+    );
+    yield();
 }
 
 void Action::setDisplay(Display *display) {
     this->display = display;
 }
 
-Action::Action(const __FlashStringHelper *name) : name(name) {this->isString = false;};
-Action::Action(String *name) {
-    this->isString = true;
-    this->sname = name;
+Action::Action(Message message1) {
+    this->message = message1;
 };

@@ -17,8 +17,9 @@
 
 class Pano {
 public:
-    explicit Pano(uint8_t pin) {
+    explicit Pano(uint8_t pin, Si5351 *pll) {
         this->pin = pin;
+        this->pll = pll;
     }
 
     void setup() {
@@ -26,6 +27,9 @@ public:
     }
 
     uint32_t loop() {
+
+
+
         uint16_t fStep; // Hz
         uint32_t panoFreq;
 
@@ -36,10 +40,16 @@ public:
             panoFreq = state.frequency - 50000;
             fStep = 100000 / WATERFALL_COLS;
         }
+        yield();
+        cbi(PRR0, PRADC); // enable power reduction ADC
         int rv = analogRead(this->pin);
+        yield();
         // debug
         sprintf(b, "%4d", rv);
         textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
+        if (this->min) {
+            //
+        }
         //
         this->PXLT[this->col + WATERFALL_COLS * this->row] = this->convertColor(rv * 50);
         if (++this->col >= WATERFALL_COLS) {
@@ -68,7 +78,12 @@ public:
         }
 
         panoFreq = panoFreq + fStep * this->col;
-        return panoFreq;
+        yield();
+        this->pll->set_freq(
+                static_cast<uint64_t>(panoFreq + 16000000) * 100ULL,
+                SI5351_CLK2
+        );
+        yield();
     }
 
     uint16_t convertColor(uint16_t c) {
@@ -98,6 +113,9 @@ public:
 
 private:
     uint8_t pin;
+    uint8_t min = 255;
+    uint8_t max = 0;
+    Si5351 *pll;
     volatile uint16_t PXLT[WATERFALL_COLS * WATERFALL_ROWS] = {0};
 
     volatile uint8_t row = 0, col = 0;

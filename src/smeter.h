@@ -8,8 +8,9 @@
 #define BAR_WIDTH             (uint8_t)14
 
 #include "screen.h"
+#include "ui/Widget.h"
 
-class SMeter {
+class SMeter: Widget {
 public:
     explicit SMeter(uint8_t pin) {
         pd = 1;
@@ -20,14 +21,16 @@ public:
         // add pin listener
 
         // render scale
-        render();
+        draw();
     }
 
-    void render() {
+
+    void draw() final {
+        if (!this->isVisible)
+            return;
         // display bars
         drawLevel(1);
         drawLevel(12);
-
         //
     }
 

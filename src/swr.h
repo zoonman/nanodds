@@ -3,7 +3,6 @@
 #define NANODDS_SWR_H
 
 #include "screen.h"
-#include "../../../../.platformio/packages/toolchain-atmelavr/avr/include/stdint.h"
 
 class SWRMeter {
 public:

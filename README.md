@@ -98,3 +98,18 @@ Watch demo on Youtube
 * https://github.com/PaulStoffregen/Encoder
 * https://github.com/adafruit/Adafruit-ST7735-Library
 * https://github.com/etherkit/Si5351Arduino
+
+Progrmming
+
+1. Fuses
+
+```bash
+avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m 
+avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10  -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDA:m -Ulfuse:w:0x7F:m 
+```
+
+2. Actual software
+
+```bash
+avrdude -p m1284p -c avrispmkII -P usb:16:79 -e -U flash:w:.pioenvs/atmega1284/firmware.elf:e -v -B 10
+```
