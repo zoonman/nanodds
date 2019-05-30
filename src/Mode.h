@@ -16,7 +16,6 @@ enum Message {
     MsgMenu = 0,
     MsgMemory,
     MsgAbout,
-    MsgTest,
     MsgCW,
     MsgSWR,
     MsgIF,
@@ -25,13 +24,15 @@ enum Message {
     MsgSWRCalibration,
     MsgSettings,
     MsgExit,
+    MsgSSB,
+    MsgSaveToNewCell,
+    MsgErase
 };
 
 const static char Messages[] PROGMEM = {
         "Menu"
         "Memory"
         "About"
-        "Test"
         "CW"
         "SWR"
         "Intermediate Frequency"
@@ -41,13 +42,14 @@ const static char Messages[] PROGMEM = {
         "Settings"
         "Exit"
         "SSB"
+        "Save To New Cell"
+        "Erase"
 };
 
 const static uint8_t MessageLengths[] PROGMEM = {
         4,
         6,
         5,
-        4,
         2,
         3,
         22,
@@ -56,7 +58,9 @@ const static uint8_t MessageLengths[] PROGMEM = {
         15,
         8,
         4,
-        30
+        3,
+        16,
+        5
 };
 
 

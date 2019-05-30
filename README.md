@@ -12,9 +12,9 @@ Buttons
 - TX
 - Mode
   * Single press - switches type of modulation
-  * Press & hold when is booting - opens Settings menu 
+  * Press & hold when is booting - opens Settings mainMenu 
   (use Encoder to navigate and change the values, 
-  use Encoder button to activate the menu item and rotate to change, 
+  use Encoder button to activate the mainMenu item and rotate to change, 
   second click will return focus)
 
 - VFO

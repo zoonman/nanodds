@@ -30,10 +30,10 @@ public:
     void setActive(bool value);
     void setDisplay(Display *display);
 private:
-    Action** actions;
+    Action** actions = nullptr;
     Display *display;
     Menu *parentMenu = nullptr;
-    // should hold pointer to a project wide menu
+    // should hold pointer to a project wide mainMenu
     Menu **currentMenu = nullptr;
     size_t length = 0;
     bool active = false;
@@ -83,7 +83,7 @@ struct Menu {
             {F("Memory"), false, FOLDER},
             {F("CW"), false, FOLDER},
     };
-} menu;
+} mainMenu;
 */
 
 #endif //NANODDS_MENU_H

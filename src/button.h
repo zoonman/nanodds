@@ -40,8 +40,8 @@ public:
                     auto rpdft = this->states[this->releasedState].stableStarted - this->states[this->pressedState].stableStarted;
                     if (currentPinState == this->releasedState && rpdft > this->shortPressThreshold && rpdft < this->longPressThreshold) {
                         if (this->shortPressCallback != nullptr && this->isEnabled && !this->wasLongPress) {
-                            this->shortPressCallback();
                             this->states[this->pressedState].stableStarted = this->states[this->releasedState].stableStarted = ms;
+                            this->shortPressCallback();
                         }
                     }
                 }

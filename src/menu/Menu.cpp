@@ -46,18 +46,20 @@ void Menu::down() {
 
 void Menu::render() {
     this->display->clear();
+    yield();
     this->display->drawRoundTextBox(
             0,
             0,
-            160,
+            this->display->tft->width(),
             MENU_ITEM_HEIGHT,
             MsgMenu,
-            ST7735_WHITE,
-            COLOR_DARK_GRAY
+            ST77XX_WHITE,
+            ST77XX_BLUE
     );
     // @todo scrolling
-    if (this->length < MAX_MENU_ACTIONS_PER_SCREEN) {
-        for (size_t i = 0; i < this->length; ++i) {
+    //if (this->length < MAX_MENU_ACTIONS_PER_SCREEN)
+    {
+        for (size_t i = 0; i < this->length; i++) {
             this->actions[i]->setActive(this->selectedActionIndex == i);
             this->actions[i]->render();
         }
@@ -81,7 +83,7 @@ void Menu::setCurrentMenu(Menu** ptcm) {
 }
 
 void Menu::exit() {
-    this->display->tft->fillScreen(ST77XX_BLACK);
+    this->display->clear();
     this->setActive(false);
     if (this->parentMenu == nullptr) {
         return;

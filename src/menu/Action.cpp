@@ -44,10 +44,11 @@ void Action::select() {
 
 void Action::render() {
     this->display->tft->setTextSize(1);
+    yield();
     this->display->drawRoundTextBox(
-            0,
+            static_cast<uint8_t>(this->height / 2),
             static_cast<uint8_t>(this->index * this->height) + this->height,
-            150,
+            static_cast<uint8_t>(this->display->tft->width() - this->height),
             this->height,
             this->message,
             this->isActive ? COLOR_BRIGHT_GREEN : COLOR_GRAY_MEDIUM,

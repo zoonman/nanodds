@@ -42,11 +42,12 @@ public:
         }
         yield();
         cbi(PRR0, PRADC); // enable power reduction ADC
+        ;
         int rv = analogRead(this->pin);
         yield();
         // debug
         sprintf(b, "%4d", rv);
-        textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
+        // textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
         if (this->min) {
             //
         }
