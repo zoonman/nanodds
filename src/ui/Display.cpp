@@ -35,6 +35,9 @@ void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Messa
     this->tft->drawRoundRect(x, y, w, h, 2, c);
     Bounds t = {};
 
+    auto s = String(message);
+    this->textxy(0, 50, &s, c, bg);
+
     char text[35] = {};
     uint16_t offset = 0;
     uint8_t m = 0;
@@ -52,7 +55,7 @@ void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Messa
     yield();
     this->tft->getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
     this->textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
-    yield();
+    //delay(1000);
 }
 
 void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, String *text, uint16_t c, uint16_t bg) {

@@ -30,7 +30,7 @@ public:
     void setActive(bool value);
     void setDisplay(Display *display);
 private:
-    Action** actions = nullptr;
+    Action* actions[7] = {nullptr};
     Display *display;
     Menu *parentMenu = nullptr;
     // should hold pointer to a project wide mainMenu

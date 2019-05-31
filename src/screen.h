@@ -75,13 +75,7 @@ void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *te
     textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
 }
 
-void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, String text, uint16_t c, uint16_t bg) {
-    tft.fillRoundRect(x, y, w, h, 2, bg);
-    tft.drawRoundRect(x, y, w, h, 2, c);
-    Bounds t = {};
-    tft.getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
-    textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
-}
+
 
 
 char oldFreq[STR_BUFFER_SIZE] = "\0";

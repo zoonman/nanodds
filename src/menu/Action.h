@@ -20,8 +20,6 @@ class Action {
 public:
     explicit Action(Message m);
 
-    // explicit Action(String *name);
-
     Message message = MsgMenu;
 
     uint8_t height = MENU_ITEM_HEIGHT;

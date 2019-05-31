@@ -8,7 +8,7 @@ void Menu::addAction(Action *action) {
     action->setIndex(this->length);
     action->setDisplay(this->display);
     size_t nl = ++this->length;
-    this->actions = (Action * *)realloc(this->actions, nl * sizeof(*action));
+    // this->actions = (Action * *)realloc(this->actions, nl * sizeof(*action));
     this->actions[this->length-1] = action;
 }
 
@@ -61,7 +61,7 @@ void Menu::render() {
     {
         for (size_t i = 0; i < this->length; i++) {
             this->actions[i]->setActive(this->selectedActionIndex == i);
-            this->actions[i]->render();
+            // this->actions[i]->render();
         }
     }
 }

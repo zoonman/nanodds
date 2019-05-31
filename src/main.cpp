@@ -55,7 +55,7 @@ bool menuPreviousState = false;
 //
 Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
-Si5351 si5351;
+Si5351 *si5351 = new Si5351();
 
 Bands bands;
 
@@ -67,7 +67,7 @@ Button *vfoButton = new Button(VFO_BTN_PIN);   // PC5
 Button *stepButton = new Button(STEP_BTN_PIN); // PA5
 Button *bandButton = new Button(BAND_BTN_PIN); // PA4
 
-Pano pano(PANO_INPUT_PIN, &si5351);
+Pano pano(PANO_INPUT_PIN, si5351);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 Display *display = new Display(&tft);
@@ -97,14 +97,7 @@ int64_t getIntermediateFrequency() {
 
 void setFrequency() {
     oFrequency = state.frequency;
-/*
-    si5351.set_freq(
-            static_cast<uint64_t>(state.frequency  )*100ULL,
-            SI5351_CLK1
-    );
-
-*/
-    si5351.set_freq(
+    si5351->set_freq(
             static_cast<uint64_t>(state.frequency + getIntermediateFrequency() +
                                   (state.isRIT && !state.tx ? state.RITFrequency : 0)) * 100ULL,
             SI5351_CLK0
@@ -281,7 +274,7 @@ void displaySettingsMenu() {
 
 void buildMenu() {
     // inititialize pointer of the current mainMenu to our top-level mainMenu
-
+/*
     // save reference to current mainMenu
     mainMenu.setCurrentMenu(&currentMenu);
 
@@ -297,13 +290,13 @@ void buildMenu() {
     memoryMenu.addAction(&saveToNewCell);
     memoryMenu.setParentMenu(&mainMenu);
     memoryMenu.setCurrentMenu(&currentMenu);
-    /*
+    / *
     for (size_t m = 0; m < 2; m++) {
         auto s1 = new String("Cool ");
         *s1 += m;
         auto *n = new Action(s1);
         memoryMenu.addAction(n);
-    }*/
+    }* /
 
     // todo: has to cycle through list of memory cells and display them
     // todo: how to typecast names properly?
@@ -325,9 +318,10 @@ void buildMenu() {
 
     Action swrAction(MsgSWR); //
     mainMenu.addAction(&swrAction);
+
     Action ifAction(MsgIF);// F("Intermediate Frequency")
     ifAction.setCallback(&displayIntermediateFrequencySettings);
-/*
+
     Action ssbOffsetAction(MsgSSBOffset);
 
     Action ddsCalibrationAction(MsgDDSCalibration);
@@ -336,7 +330,7 @@ void buildMenu() {
     // Settings
     Action settingsAction(MsgSettings);
     Menu settingsMenu;
-    settingsMenu.setDisplay(&display);
+    settingsMenu.setDisplay(display);
     settingsMenu.setParentMenu(&mainMenu);
     settingsMenu.setCurrentMenu(&currentMenu);
     settingsMenu.addAction(&ifAction);
@@ -351,9 +345,9 @@ void buildMenu() {
     settingsAction.setSubMenu(&settingsMenu);
     settingsAction.setCurrentMenu(&currentMenu);
 
-    //mainMenu.addAction(&settingsAction);
+    mainMenu.addAction(&settingsAction);
 
-  */
+
 
     // About
     Action aboutAction(MsgAbout);
@@ -362,9 +356,15 @@ void buildMenu() {
 
 
     // Exit
-    Action menuExitAction(MsgExit);
-    menuExitAction.setCallback(&exitMenu);
-    mainMenu.addAction(&menuExitAction);
+    auto *menuExitAction = new Action(MsgExit);
+    menuExitAction->setCallback(&exitMenu);
+    mainMenu.addAction(menuExitAction);
+    delay(100);
+*/
+    struct MD {
+        Message msg;
+        Message msg;
+    };
 }
 
 
@@ -402,7 +402,7 @@ void setup() {
 
 
     // analogWrite(BACKLIGHT_PIN, 250);
-    si5351.init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
+    si5351->init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
 
 
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
@@ -425,15 +425,15 @@ void setup() {
     //Serial.println("--");
     //Serial.println(TWBR);
     //Serial.println(TWSR);
-    si5351.output_enable(SI5351_CLK0, 1);
-    si5351.output_enable(SI5351_CLK1, 1);
-    si5351.output_enable(SI5351_CLK1, 1);
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
-    si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_4MA);
-    si5351.drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
+    si5351->output_enable(SI5351_CLK0, 1);
+    si5351->output_enable(SI5351_CLK1, 1);
+    si5351->output_enable(SI5351_CLK1, 1);
+    si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
+    si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_4MA);
+    si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
 
 
-    si5351.set_freq(
+    si5351->set_freq(
             static_cast<uint64_t>(getIntermediateFrequency()) * 100,
             SI5351_CLK1
     );
