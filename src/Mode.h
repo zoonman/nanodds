@@ -26,7 +26,8 @@ enum Message {
     MsgExit,
     MsgSSB,
     MsgSaveToNewCell,
-    MsgErase
+    MsgErase,
+    MsgLoadFromTheCell,
 };
 
 const static char Messages[] PROGMEM = {
@@ -44,6 +45,7 @@ const static char Messages[] PROGMEM = {
         "SSB"
         "Save To New Cell"
         "Erase"
+        "Load from the Cell"
 };
 
 const static uint8_t MessageLengths[] PROGMEM = {
@@ -60,7 +62,8 @@ const static uint8_t MessageLengths[] PROGMEM = {
         4,
         3,
         16,
-        5
+        5,
+        18
 };
 
 

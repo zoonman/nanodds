@@ -13,28 +13,27 @@
 #include "Action.h"
 #include <Adafruit_ST7735.h>
 
-class Action;
-
 class Menu {
 public:
+    explicit Menu(Display *display, Message *messages, size_t length) {
+        this->display = display;
+        this->messages = messages;
+        this->length = length;
+    }
 
     virtual void up();
     virtual void down();
     void render();
     void select();
     void exit();
-    void addAction(Action *action);
-    void setParentMenu(Menu *pm);
-    void setCurrentMenu(Menu** pm);
     bool isActive();
     void setActive(bool value);
     void setDisplay(Display *display);
+    void renderItem(size_t i);
+    Message getActiveMessage();
 private:
-    Action* actions[7] = {nullptr};
     Display *display;
-    Menu *parentMenu = nullptr;
-    // should hold pointer to a project wide mainMenu
-    Menu **currentMenu = nullptr;
+    Message *messages;
     size_t length = 0;
     bool active = false;
     size_t selectedActionIndex = 0;

@@ -1,8 +1,8 @@
 #define ENCODER_OPTIMIZE_INTERRUPTS
-#define TWI_FREQ 1000000L
+#define TWI_FREQ 400000L
 
 #define USE_FAST_PINIO
-// #define SPI_DEFAULT_FREQ 4000000
+//#define SPI_DEFAULT_FREQ 4000000
 
 
 // http://wiki.microduinoinc.com/Microduino-Module_Core%2B
@@ -16,7 +16,7 @@
 #define TFT_BACKLIGHT_PIN  7
 
 #define SMETER_INPUT_PIN 31
-#define PANO_INPUT_PIN 5
+#define PANO_INPUT_PIN   29 // PA2, D29 or A5
 
 #define SWR_REF_INPUT_PIN 31
 #define SWR_FOR_INPUT_PIN 31
@@ -52,6 +52,7 @@ volatile long setupCalls = 0;
 volatile long encoderPosition = 0;
 volatile unsigned long loopMS;
 bool menuPreviousState = false;
+Message subMenuScreen = MsgExit;
 //
 Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
@@ -59,7 +60,7 @@ Si5351 *si5351 = new Si5351();
 
 Bands bands;
 
-SMeter sMeter(SMETER_INPUT_PIN);
+
 Button *txButton = new Button(TX_BTN_PIN);
 Button *menuButton = new Button(MEM_BTN_PIN);   // PC3
 Button *modeButton = new Button(MODE_BTN_PIN); // PC4
@@ -71,10 +72,40 @@ Pano pano(PANO_INPUT_PIN, si5351);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 Display *display = new Display(&tft);
-Menu mainMenu;
+SMeter sMeter(SMETER_INPUT_PIN, display);
+Message mainMenuMessages[] = {
+        MsgMemory,
+        MsgSWR,
+        MsgCW,
+        MsgSettings,
+        MsgAbout,
+        MsgExit
+};
+Message settingsMenuMessages[] = {
+        MsgIF,
+        MsgSSBOffset,
+        MsgDDSCalibration,
+        MsgSWRCalibration,
+        MsgExit
+};
+
+Message memoryMenuMessages[] = {
+        MsgSaveToNewCell,
+        MsgLoadFromTheCell,
+        MsgErase,
+        MsgExit
+};
+
+Menu mainMenu(display, mainMenuMessages, 6);
+Menu settingsMenu(display, settingsMenuMessages, 5);
+Menu memoryMenu(display, memoryMenuMessages, 4);
+
 Menu *currentMenu = &mainMenu;
+
 Storage *storage = new Storage(0x50);
-Spinner *spinner = new Spinner(display);
+
+
+Spinner<uint32_t> *spinner = new Spinner<uint32_t>(display);
 
 
 int64_t getIntermediateFrequency() {
@@ -226,6 +257,7 @@ void saveStateToACell() {
 
 void displayAbout() {
     display->clear();
+    subMenuScreen = MsgAbout;
     display->textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
     display->textxy(20, 20, F("Version: 1.0.0"), COLOR_MEDIUM_RED, ST7735_BLACK);
     display->textxy(74, 30, F("2019-05-07"), COLOR_MEDIUM_RED, ST7735_BLACK);
@@ -236,14 +268,17 @@ void displayAbout() {
 
 void displayIntermediateFrequencySettings() {
     display->clear();
+    subMenuScreen = MsgIF;
     display->textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
-    spinner->setLeft(10);
-    spinner->setTop(50);
-    spinner->setWidth(100);
-    spinner->setHeight(18);
+    spinner->setLeft(5);
+    spinner->setLabel(MsgIF);
+    spinner->setTop(40);
+    spinner->setWidth(110);
+    spinner->setHeight(32);
     spinner->setFocus(true);
     spinner->setVisibility(true);
-
+    spinner->setValue(state.iFrequency);
+    spinner->draw();
     // if (freqEncoder.interruptArgs)
 }
 
@@ -268,109 +303,52 @@ class App {
     }
 };
 
-void displaySettingsMenu() {
-
+void callMenuFunc(Message m) {
+    switch (m) {
+        case MsgAbout:
+            currentMenu->exit();
+            displayAbout();
+            break;
+        case MsgMemory:
+            currentMenu = &memoryMenu;
+            currentMenu->setActive(true);
+            currentMenu->render();
+            break;
+        case MsgSettings:
+            currentMenu = &settingsMenu;
+            currentMenu->setActive(true);
+            currentMenu->render();
+            break;
+        case MsgIF:
+            currentMenu->exit();
+            displayIntermediateFrequencySettings();
+            break;
+        case MsgExit:
+        case MsgSSBOffset:
+        case MsgCW:
+        case MsgDDSCalibration:
+        case MsgSWRCalibration:
+            currentMenu->exit();
+            if (currentMenu == &settingsMenu) {
+                currentMenu = &mainMenu;
+            }
+            display->clear();
+            render();
+            break;
+    }
 }
-
-void buildMenu() {
-    // inititialize pointer of the current mainMenu to our top-level mainMenu
-/*
-    // save reference to current mainMenu
-    mainMenu.setCurrentMenu(&currentMenu);
-
-    mainMenu.setDisplay(display);
-
-    Action memoryAction(MsgMemory);
-
-    Menu memoryMenu;
-
-    Action saveToNewCell(MsgSaveToNewCell);
-    saveToNewCell.setCallback(&saveStateToACell);
-    memoryMenu.setDisplay(display);
-    memoryMenu.addAction(&saveToNewCell);
-    memoryMenu.setParentMenu(&mainMenu);
-    memoryMenu.setCurrentMenu(&currentMenu);
-    / *
-    for (size_t m = 0; m < 2; m++) {
-        auto s1 = new String("Cool ");
-        *s1 += m;
-        auto *n = new Action(s1);
-        memoryMenu.addAction(n);
-    }* /
-
-    // todo: has to cycle through list of memory cells and display them
-    // todo: how to typecast names properly?
-    Action eraseCell(MsgErase);// F("Erase data")
-    memoryMenu.addAction(&eraseCell);
-
-    Action memExitAction(MsgExit);// F("Exit")
-    memExitAction.setCallback(&exitMenu);
-
-    memoryMenu.addAction(&memExitAction);
-
-    memoryAction.setSubMenu(&memoryMenu);
-    memoryAction.setCurrentMenu(&currentMenu);
-
-    mainMenu.addAction(&memoryAction);
-
-    Action cwAction(MsgCW);// F("CW")
-    mainMenu.addAction(&cwAction);
-
-    Action swrAction(MsgSWR); //
-    mainMenu.addAction(&swrAction);
-
-    Action ifAction(MsgIF);// F("Intermediate Frequency")
-    ifAction.setCallback(&displayIntermediateFrequencySettings);
-
-    Action ssbOffsetAction(MsgSSBOffset);
-
-    Action ddsCalibrationAction(MsgDDSCalibration);
-    Action swrCalibrationAction(MsgSWRCalibration);
-
-    // Settings
-    Action settingsAction(MsgSettings);
-    Menu settingsMenu;
-    settingsMenu.setDisplay(display);
-    settingsMenu.setParentMenu(&mainMenu);
-    settingsMenu.setCurrentMenu(&currentMenu);
-    settingsMenu.addAction(&ifAction);
-    settingsMenu.addAction(&ssbOffsetAction);
-    settingsMenu.addAction(&ddsCalibrationAction);
-    settingsMenu.addAction(&swrCalibrationAction);
-
-    Action settingsExitAction(MsgSSB);
-    settingsExitAction.setCallback(&exitMenu);
-    settingsMenu.addAction(&settingsExitAction);
-
-    settingsAction.setSubMenu(&settingsMenu);
-    settingsAction.setCurrentMenu(&currentMenu);
-
-    mainMenu.addAction(&settingsAction);
-
-
-
-    // About
-    Action aboutAction(MsgAbout);
-    mainMenu.addAction(&aboutAction);
-    aboutAction.setCallback(&displayAbout);
-
-
-    // Exit
-    auto *menuExitAction = new Action(MsgExit);
-    menuExitAction->setCallback(&exitMenu);
-    mainMenu.addAction(menuExitAction);
-    delay(100);
-*/
-    struct MD {
-        Message msg;
-        Message msg;
-    };
-}
-
 
 void encoderClickHandler() {
     if (currentMenu->isActive()) {
-        currentMenu->select();
+        callMenuFunc(currentMenu->getActiveMessage());
+    } else if (subMenuScreen != MsgExit) {
+        //
+        switch (subMenuScreen) {
+            case MsgAbout:
+                display->clear();
+                render();
+                break;
+        }
     } else {
         state.isRIT = !state.isRIT;
         displayRIT();
@@ -397,8 +375,6 @@ void setup() {
 
 
     pinMode(TFT_BACKLIGHT_PIN, OUTPUT);
-
-
 
 
     // analogWrite(BACKLIGHT_PIN, 250);
@@ -478,7 +454,6 @@ void setup() {
 
     menuButton->registerShortPressCallback(&menuClick);
     //delay(100);
-    buildMenu();
 
     delay(10);
     //storage->loadState(&state, 0);
@@ -491,6 +466,8 @@ void setup() {
     digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
 
 }
+
+
 
 
 void renderTXUI() {
@@ -513,18 +490,15 @@ void renderRXUI() {
 
 // MAIN LOOP ===================================================================
 void loop() {
-
-
     // return;
     txButton->loop();
 
-
     if (txButton->isPressed() && state.tx == 0) {
         state.tx = true;
-        if (!currentMenu->isActive()) {
+        if (!currentMenu->isActive() && subMenuScreen == MsgExit) {
             renderTXUI();
         }
-    } else if (txButton->isReleased() && state.tx != 0) {
+    } else if (txButton->isReleased() && state.tx != 0 && subMenuScreen == MsgExit) {
         state.tx = false;
         // getting back in rx
         if (!currentMenu->isActive()) {
@@ -544,7 +518,7 @@ void loop() {
         auto currentMS = millis();
 
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
-        if (loopMS != currentMS) {
+        if (currentMS - loopMS > 10) {
 
             sMeter.loop();
             freqEncButton->loop();
@@ -571,6 +545,8 @@ void loop() {
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
+                } else if (subMenuScreen != MsgExit) {
+
                 } else {
                     state.frequency -= state.step;
 
@@ -589,6 +565,7 @@ void loop() {
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
+                } else if (subMenuScreen != MsgExit) {
                 } else {
                     state.frequency += state.step;
 
@@ -630,14 +607,16 @@ void loop() {
                 auto av = (float)voltage / 37.5;
                 auto str1 = String(av, 2);
                 str1.concat("V");
-                display->textxy(50, RIT_Y, &str1, COLOR_DARK_GREEN, ST7735_BLACK);
+                if (subMenuScreen == MsgExit) {
+                    display->textxy(50, RIT_Y, &str1, COLOR_DARK_GREEN, ST7735_BLACK);
+                }
             }
 
             loopMS = currentMS;
             // settle
             yield();
         }
-        if (!currentMenu->isActive()) {
+        if (!currentMenu->isActive() && subMenuScreen == MsgExit) {
             pano.loop();
         }
         yield();

@@ -14,41 +14,11 @@
 
 #define MENU_ITEM_HEIGHT (uint8_t)16
 
-class Menu;
+struct Action {
+    Action(Message msg, void (*cb)()) : msg(msg), cb(cb) {}
 
-class Action {
-public:
-    explicit Action(Message m);
-
-    Message message = MsgMenu;
-
-    uint8_t height = MENU_ITEM_HEIGHT;
-    bool isActive = false;
-
-    bool hasSubMenu();
-
-    void render();
-
-    void setSubMenu(Menu *menu);
-    void setCurrentMenu(Menu** menu);
-
-    void setActive(bool status);
-
-    void setIndex(size_t index);
-
-    void setCallback(CALLBACK);
-
-    void select();
-
-    void setDisplay(Display *display);
-
-private:
+    Message msg;
     CALLBACK cb = nullptr;
-    Menu *subMenu = nullptr;
-    Menu **currentMenu = nullptr;
-    Menu *parentMenu = nullptr;
-    Display *display;
-    size_t index = 0;
 };
 
 #endif //NANODDS_ACTION_H

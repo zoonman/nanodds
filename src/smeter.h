@@ -12,9 +12,10 @@
 
 class SMeter: Widget {
 public:
-    explicit SMeter(uint8_t pin) {
+    explicit SMeter(uint8_t pin, Display *display1) {
         pd = 1;
         this->pin = pin;
+        this->display = display1;
     };
 
     void setup() {
@@ -47,6 +48,14 @@ public:
         }
     }
 
+    void setVisibility(boolean isVisible) {
+        this->isVisible = isVisible;
+        if (this->isVisible) {
+            drawLevel(1);
+            drawLevel(12);
+        }
+    };
+
     void drawLevelBar(uint8_t l) {
         uint16_t color = this->level2color(l);
         uint8_t wOffset = (l > 9) ? (uint8_t)2 : (uint8_t)0, sOffset = 0;
@@ -54,7 +63,7 @@ public:
 
         if (l == 11) sOffset = 2;
 
-        tft.fillRect(lxp + sOffset, TFT_HEIGHT - 8, BAR_WIDTH - 1 + wOffset, 6, color);
+        this->display->tft->fillRect(lxp + sOffset, TFT_HEIGHT - 8, BAR_WIDTH - 1 + wOffset, 6, color);
 
         if (l > 9) {
             itoa(l+1, b, 10);
@@ -68,24 +77,24 @@ public:
         } else {
             itoa(l, b, 10);
         }
-        textxy(lxp + 4, TFT_HEIGHT - 18, b, color, ST77XX_BLACK);
+        this->display->textxy(lxp + 4, TFT_HEIGHT - 18, b, color, ST77XX_BLACK);
     }
 
     void drawLevel(uint8_t l) {
-        tft.drawRect(0, TFT_HEIGHT - 10, TFT_WIDTH, 10, COLOR_BAND_BACKGROUND);
+        this->display->tft->drawRect(0, TFT_HEIGHT - 10, TFT_WIDTH, 10, COLOR_BAND_BACKGROUND);
         if (l == pl) return;
         if (l > 12) l = 12;
         if (l < 1) l = 1;
         uint8_t i;
         if (l > pl) {
             for (i = pl; i < l; i++) {
-                drawLevelBar(i);
+                this->drawLevelBar(i);
             }
             pl = l;
         }
         if (l < pl) {
             for (i = pl; i > l; i--) {
-                tft.fillRect((i - 1) * BAR_WIDTH + (i == 11 ? 4 : 2), TFT_HEIGHT - 8, BAR_WIDTH + (i > 9 ? 2 : 0), 6, ST77XX_BLACK);
+                this->display->tft->fillRect((i - 1) * BAR_WIDTH + (i == 11 ? 4 : 2), TFT_HEIGHT - 8, BAR_WIDTH + (i > 9 ? 2 : 0), 6, ST77XX_BLACK);
             }
             pl = l;
         }
@@ -95,7 +104,7 @@ public:
         int d = analogRead(pin);
         if (pd != d) {
             pd = d;
-            drawLevel(static_cast<uint8_t>(pd / 92));
+            this->drawLevel(static_cast<uint8_t>(pd / 92));
         }
     }
 private:

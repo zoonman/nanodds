@@ -8,29 +8,29 @@
 #include "Display.h"
 #include "Widget.h"
 
-
+template <typename T>
 class Spinner: public Widget {
 private:
-    String *label;
+    Message label;
     uint16_t color;
-    boolean isFocused;
+    boolean isFocused = false;
     boolean isRedraw = false;
-    int value;
-    int step;
+    T value = 0;
+    int step = 1;
 
 
 public:
-    explicit Spinner(Display *display);
+    explicit Spinner<T>(Display *display);
 
-    void setValue(int value);
+    void setValue(T value);
 
     void inc();
 
     void dec();
 
-    int getValue();
+    T getValue();
 
-    void setLabel(String *label) {
+    void setLabel(Message label) {
         this->label = label;
     };
 

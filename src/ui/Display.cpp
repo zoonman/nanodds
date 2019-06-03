@@ -4,6 +4,8 @@
 
 #include "Display.h"
 
+
+
 void Display::setTFT(Adafruit_ST7735 *t) {
     this->tft = t;
 };
@@ -30,14 +32,8 @@ void Display::textxy(uint16_t x, uint16_t y, const __FlashStringHelper *ifsh, ui
     this->tft->print(ifsh);
 }
 
-void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message message, uint16_t c, uint16_t bg) {
-    this->tft->fillRoundRect(x, y, w, h, 2, bg);
-    this->tft->drawRoundRect(x, y, w, h, 2, c);
+void Display::drawTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message message, uint16_t c, uint16_t bg, TextAlignment alignment) {
     Bounds t = {};
-
-    auto s = String(message);
-    this->textxy(0, 50, &s, c, bg);
-
     char text[35] = {};
     uint16_t offset = 0;
     uint8_t m = 0;
@@ -54,8 +50,23 @@ void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Messa
     text[l] = '\0';
     yield();
     this->tft->getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
-    this->textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
-    //delay(1000);
+    switch (alignment) {
+        case AlignLeft:
+            this->textxy(x, y + (h - t.h) / 2 + 1, text, c, bg);
+            break;
+        case AlignCenter:
+            this->textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
+            break;
+        case AlignRight:
+            this->textxy(x + w - t.w, y + (h - t.h) / 2 + 1, text, c, bg);
+            break;
+    }
+};
+
+void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message message, uint16_t c, uint16_t bg) {
+    this->tft->fillRoundRect(x, y, w, h, 2, bg);
+    this->tft->drawRoundRect(x, y, w, h, 2, c);
+    this->drawTextBox(x, y, w, h, message, c, bg, AlignCenter);
 }
 
 void Display::drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, String *text, uint16_t c, uint16_t bg) {
