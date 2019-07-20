@@ -6,7 +6,7 @@
 #define NANODDS_WIDGET_H
 
 #include "Display.h"
-#include "../Widget.h"
+#include "../Task.h"
 
 class Widget: public Task {
 protected:
