@@ -16,7 +16,7 @@ private:
     boolean isFocused = false;
     boolean isRedraw = false;
     T value = 0;
-    int step = 1;
+    T step = 1;
 
 
 public:
@@ -27,6 +27,10 @@ public:
     void inc();
 
     void dec();
+
+    void changeStep();
+
+    uint8_t lg();
 
     T getValue();
 

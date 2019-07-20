@@ -56,6 +56,27 @@ void Spinner<T>::draw() {
 
             this->color
     );
+
+
+    Bounds t = {};
+    this->display->tft->getTextBounds(
+            text,
+            this->left,
+            this->top + this->height / uint8_t(2),
+            &t.x,
+            &t.y,
+            &t.w,
+            &t.h
+    );
+
+
+    this->display->tft->drawFastHLine(
+            this->left +
+            (this->width - this->height / uint8_t(2))/2 + t.w/2 - (this->lg() * 6),
+            this->top + this->height - 3,
+            5,
+            this->color
+    );
 }
 
 template <typename T>
@@ -75,7 +96,6 @@ void Spinner<T>::inc() {
     this->value += this->step;
     this->isRedraw = true;
 }
-
 
 template <typename T>
 void Spinner<T>::dec() {
@@ -99,6 +119,27 @@ void Spinner<T>::loop() {
     if (this->isRedraw) {
         this->draw();
     }
+}
+
+template <typename T>
+void Spinner<T>::changeStep() {
+    if ((this->step * 10u) > this->value) {
+        this->step = 1;
+    } else {
+        this->step *= 10u;
+    }
+    this->isRedraw = true;
+}
+
+template <typename T>
+uint8_t Spinner<T>::lg() {
+    T s = this->step;
+    uint8_t i = 1;
+    while (s > 1) {
+        s /= 10;
+        i++;
+    }
+    return i;
 }
 
 // required to make a proper linker work

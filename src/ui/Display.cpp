@@ -44,7 +44,7 @@ void Display::drawTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message me
     }
     yield();
     auto l = pgm_read_byte(MessageLengths + message);
-    for (m = 0; m < l; m++) {
+    for (m = 0; m < min(l, 34); m++) {
         text[m] = pgm_read_byte(Messages + offset + m);
     }
     text[l] = '\0';

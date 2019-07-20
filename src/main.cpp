@@ -90,8 +90,8 @@ Message settingsMenuMessages[] = {
 };
 
 Message memoryMenuMessages[] = {
-        MsgSaveToNewCell,
         MsgLoadFromTheCell,
+        MsgSaveToNewCell,
         MsgErase,
         MsgExit
 };
@@ -233,14 +233,22 @@ void switchVFO() {
 
 
 void switchStep() {
-    changeFrequencyStep(1);
+    if (subMenuScreen != MsgExit) {
+        spinner->changeStep();
+        spinner->loop();
+    } else {
+        changeFrequencyStep(1);
+    }
 }
 
 void menuClick() {
+    if (&(*currentMenu) != &mainMenu) {
+        currentMenu = &mainMenu;
+    }
     if (!currentMenu->isActive()) {
         currentMenu->setActive(true);
-        currentMenu->render();
     }
+    currentMenu->render();
 }
 
 void exitMenu() {
@@ -250,9 +258,12 @@ void exitMenu() {
 void saveStateToACell() {
     display->clear();
     display->textxy(20, 70, F("Saving..."), ST7735_WHITE, ST7735_BLACK);
+    EEPROM.put(0, state);
 
-    storage->saveState(&state, 0);
-    exitMenu();
+    display->clear();
+    render();
+    // storage->saveState(&state, 0);
+    // exitMenu();
 }
 
 void displayAbout() {
@@ -264,6 +275,23 @@ void displayAbout() {
     display->textxy(1, 50, F("Details & updates online:"), COLOR_GRAY_MEDIUM, ST7735_BLACK);
     display->textxy(1, 65, F("zoonman.com/projects/ssb85"), COLOR_BRIGHT_BLUE, ST7735_BLACK);
     display->textxy(0, 110, F("Built by Philipp Tkachev"), COLOR_DARK_GREEN, ST7735_BLACK);
+}
+
+void displayAllEeprom() {
+    display->clear();
+    EEPROM.get(0, state);
+    subMenuScreen = MsgExit;
+    render();
+}
+
+void eraseEeprom() {
+    display->clear();
+    display->drawRoundTextBox(0, 0, TFT_WIDTH, TFT_HEIGHT, MsgErasing, ST7735_WHITE, ST7735_BLACK);
+    for (int i = 0 ; i < EEPROM.length() ; i++) {
+        EEPROM.write(i, 255);
+    }
+    display->clear();
+    render();
 }
 
 void displayIntermediateFrequencySettings() {
@@ -303,6 +331,7 @@ class App {
     }
 };
 
+
 void callMenuFunc(Message m) {
     switch (m) {
         case MsgAbout:
@@ -322,6 +351,14 @@ void callMenuFunc(Message m) {
         case MsgIF:
             currentMenu->exit();
             displayIntermediateFrequencySettings();
+            break;
+        case MsgLoadFromTheCell:
+            currentMenu->exit();
+            displayAllEeprom();
+            break;
+        case MsgErase:
+            currentMenu->exit();
+            eraseEeprom();
             break;
         case MsgExit:
         case MsgSSBOffset:
@@ -344,9 +381,16 @@ void encoderClickHandler() {
     } else if (subMenuScreen != MsgExit) {
         //
         switch (subMenuScreen) {
+            case MsgIF:
+                state.iFrequency = spinner->getValue();
+                display->clear();
+                saveStateToACell();
+                subMenuScreen = MsgExit;
+                break;
             case MsgAbout:
                 display->clear();
                 render();
+                subMenuScreen = MsgExit;
                 break;
         }
     } else {
@@ -356,6 +400,23 @@ void encoderClickHandler() {
     }
 }
 
+void encoderCW() {
+    switch (subMenuScreen) {
+        case MsgIF:
+            spinner->inc();
+            spinner->loop();
+            break;
+    }
+}
+
+void encoderCCW() {
+    switch (subMenuScreen) {
+        case MsgIF:
+            spinner->dec();
+            spinner->loop();
+            break;
+    }
+}
 
 /****************************************************************
  *
@@ -449,7 +510,7 @@ void setup() {
     modeButton->registerLongPressCallback(&switchBacklight);
 
     vfoButton->registerShortPressCallback(&switchVFO);
-    stepButton->registerShortPressCallback(&switchStep);
+    // stepButton->registerShortPressCallback(&switchStep);
 
 
     menuButton->registerShortPressCallback(&menuClick);
@@ -546,7 +607,7 @@ void loop() {
                         displayRIT();
                     }
                 } else if (subMenuScreen != MsgExit) {
-
+                    encoderCCW();
                 } else {
                     state.frequency -= state.step;
 
@@ -566,6 +627,7 @@ void loop() {
                         displayRIT();
                     }
                 } else if (subMenuScreen != MsgExit) {
+                    encoderCW();
                 } else {
                     state.frequency += state.step;
 
