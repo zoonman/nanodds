@@ -1,33 +1,4 @@
-#define ENCODER_OPTIMIZE_INTERRUPTS
-#define TWI_FREQ 400000L
-
-#define USE_FAST_PINIO
-//#define SPI_DEFAULT_FREQ 4000000
-
-
-// http://wiki.microduinoinc.com/Microduino-Module_Core%2B
-#define TX_BTN_PIN     6 // (INT2/AIN0)PB2
-#define MEM_BTN_PIN   16
-#define MODE_BTN_PIN  17
-#define VFO_BTN_PIN   18
-#define STEP_BTN_PIN  26
-#define BAND_BTN_PIN  27
-#define BACKLIGHT_PIN  9
-#define TFT_BACKLIGHT_PIN  7
-
-#define SMETER_INPUT_PIN 31
-#define PANO_INPUT_PIN   29 // PA2, D29 or A5
-
-#define SWR_REF_INPUT_PIN 31
-#define SWR_FOR_INPUT_PIN 31
-
-
-#define ENCODER_LEFT_PIN   2
-#define ENCODER_RIGHT_PIN  3
-#define ENCODER_PUSH_PIN  22
-
-#define UPPER_RX_BOUND 30000000
-#define LOWER_RX_BOUND 500000
+#include "config.h"
 
 #include <Wire.h>
 
@@ -475,8 +446,8 @@ void setup() {
             SI5351_CLK1
     );
 /**/
-    state.frequency = START_F;
-    state.altFrequency = START_F + 1000;
+    state.frequency = START_FREQUENCY;
+    state.altFrequency = START_FREQUENCY + 1000;
 
     setFrequency();
     freqEncoder.write(encoderPosition);

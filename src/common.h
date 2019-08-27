@@ -9,7 +9,6 @@
 #include "State.h"
 
 #define SCALE_T               (uint8_t)5
-#define START_F               (uint32_t)1199000
 #define STR_BUFFER_SIZE       12
 
 
@@ -17,11 +16,9 @@
 #define FREQUENCY_X           (uint8_t)10
 #define FREQUENCY_Y           (uint8_t)56
 #define FREQUENCY_FAKE_SPACE  '/'
-#define INTERMEDIATE_FREQUENCY 7895000
 
 char b[STR_BUFFER_SIZE];
 
-#define BANDS                 8
 
 volatile State state;
 // volatile keyword must be used for global variables used inside interrupt handlers
@@ -41,6 +38,7 @@ struct BandRecord {
     uint16_t width; // kHz
 };
 
+#define BANDS                 8
 #pragma pack(push, 1)
 const static BandRecord BandsBounds[BANDS] = {
         {160, 1800,  200},

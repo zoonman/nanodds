@@ -5,7 +5,7 @@
 #ifndef NANODDS_SCREEN_H
 #define NANODDS_SCREEN_H
 
-
+#include "config.h"
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7735.h>
@@ -16,22 +16,6 @@
 #include "common.h"
 #include "colors.h"
 #include "menu/Action.h"
-
-// For the breakout, you can use any 2 or 3 pins
-// These pins will also work for the 1.8" TFT shield
-// #define TFT_CS                10 // D10, Chip select pin #, SS
-//  #define TFT_RST               8  // D8, Reset pin # (optional, pass -1 if unused), PB0
-// #define TFT_DC                9  // A0, Data/Command pin # (PB1)
-
-#define TFT_CS                10 // D10, Chip select pin #44, SS, PB4 pinout http://wiki.microduinoinc.com/Microduino-Module_Core%2B
-#define TFT_RST               4  // D4, Reset pin #40 (optional, pass -1 if unused), PB0
-#define TFT_DC                 5  // A0, Data/Command pin #41 (PB1)
-
-
-// #define TFT_CS  PB4
-// PB1
-
-// L:42, H:99, E:?FF?
 
 // display
 #define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
