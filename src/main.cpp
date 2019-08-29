@@ -9,7 +9,7 @@
 #include <wiring_private.h>
 
 #include "smeter.h"
-#include "bands.h"
+#include "ui/Band.h"
 #include "button.h"
 #include "pano.h"
 #include "swr.h"
@@ -23,13 +23,13 @@ volatile long setupCalls = 0;
 volatile long encoderPosition = 0;
 volatile unsigned long loopMS;
 bool menuPreviousState = false;
+//
 Message subMenuScreen = MsgExit;
 //
 Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
 Si5351 *si5351 = new Si5351();
 
-Bands bands;
 
 
 Button *txButton = new Button(TX_BTN_PIN);
@@ -39,11 +39,15 @@ Button *vfoButton = new Button(VFO_BTN_PIN);   // PC5
 Button *stepButton = new Button(STEP_BTN_PIN); // PA5
 Button *bandButton = new Button(BAND_BTN_PIN); // PA4
 
-Pano pano(PANO_INPUT_PIN, si5351);
+Pano *pano = new Pano(PANO_INPUT_PIN, si5351);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 Display *display = new Display(&tft);
 SMeter sMeter(SMETER_INPUT_PIN, display);
+
+Band *band = new Band(display, &state);
+
+
 Message mainMenuMessages[] = {
         MsgMemory,
         MsgSWR,
@@ -76,6 +80,7 @@ Menu *currentMenu = &mainMenu;
 Storage *storage = new Storage(0x50);
 
 
+
 Spinner<uint32_t> *spinner = new Spinner<uint32_t>(display);
 
 
@@ -106,8 +111,8 @@ void setFrequency() {
     );
     if (!currentMenu->isActive()) {
         displayFrequency();
-        bands.update();
-        displayScale(false);
+        band->loop();
+        // displayScale(false);
     }
 }
 
@@ -115,9 +120,9 @@ void render() {
     tft.fillScreen(ST77XX_BLACK);
     displayModulation();
     displayMode();
-    bands.render();
-    changeFrequencyStep(-1);
-    displayScale(true);
+    band->draw();
+    changeFrequencyStep(0);
+    // displayScale(true);
     displayFrequency();
     sMeter.setup();
     displayRIT();
@@ -135,10 +140,24 @@ RIT
 unsigned long bs;
 
 void switchBand() {
-    bands.next();
-    displayScale(true);
+    switch (subMenuScreen) {
+        case MsgExit:
+            band->next();
+            // displayScale(true);
+            break;
+        default:
+            ;
+            // nothing
+    }
 }
 
+
+void setIntermediateFrequency() {
+    si5351->set_freq(
+            static_cast<uint64_t>(getIntermediateFrequency()) * 100ULL,
+            SI5351_CLK1
+    );
+}
 
 void switchBacklight() {
     int led = digitalRead(BACKLIGHT_PIN);
@@ -172,38 +191,47 @@ void enableFM() {
 }
 
 void switchModulation() {
-    switch (state.mode) {
-        case CW:
-            enableLSB();
+    switch (subMenuScreen) {
+        case MsgExit:
+            switch (state.mode) {
+                case CW:
+                    enableLSB();
+                    break;
+                case LSB:
+                    enableUSB();
+                    break;
+                case USB:
+                    enableAM();
+                    break;
+                case AM:
+                    enableFM();
+                    break;
+                case FM:
+                    enableCW();
+                    break;
+            }
+            displayModulation();
+            setFrequency();
+
             break;
-        case LSB:
-            enableUSB();
-            break;
-        case USB:
-            enableAM();
-            break;
-        case AM:
-            enableFM();
-            break;
-        case FM:
-            enableCW();
-            break;
+        default:
+            ;
     }
-    displayModulation();
-    setFrequency();
 }
 
 void switchVFO() {
-    state.isAltFrequency = !state.isAltFrequency;
-    uint32_t t = state.frequency;
-    state.frequency = state.altFrequency;
-    state.altFrequency = t;
-    displayVFO();
-    setFrequency();
+    if (subMenuScreen != MsgExit) {
+        state.isAltFrequency = !state.isAltFrequency;
+        uint32_t t = state.frequency;
+        state.frequency = state.altFrequency;
+        state.altFrequency = t;
+        displayVFO();
+        setFrequency();
+    }
 }
 
 
-void switchStep() {
+void stepButtonShortClickCb() {
     if (subMenuScreen != MsgExit) {
         spinner->changeStep();
         spinner->loop();
@@ -343,6 +371,8 @@ void callMenuFunc(Message m) {
             display->clear();
             render();
             break;
+        default:
+            ;
     }
 }
 
@@ -363,6 +393,8 @@ void encoderClickHandler() {
                 render();
                 subMenuScreen = MsgExit;
                 break;
+            default:
+                ;
         }
     } else {
         state.isRIT = !state.isRIT;
@@ -376,7 +408,11 @@ void encoderCW() {
         case MsgIF:
             spinner->inc();
             spinner->loop();
+            state.iFrequency = spinner->getValue();
+            setIntermediateFrequency();
             break;
+        default:
+            ;
     }
 }
 
@@ -385,7 +421,11 @@ void encoderCCW() {
         case MsgIF:
             spinner->dec();
             spinner->loop();
+            state.iFrequency = spinner->getValue();
+            setIntermediateFrequency();
             break;
+        default:
+            ;
     }
 }
 
@@ -420,6 +460,10 @@ void setup() {
     tft.setRotation(1);
 
     loopMS = millis();
+
+    band->setVisibility(true);
+
+
     //
     //
     //Serial.begin(9600);
@@ -436,15 +480,12 @@ void setup() {
     si5351->output_enable(SI5351_CLK0, 1);
     si5351->output_enable(SI5351_CLK1, 1);
     si5351->output_enable(SI5351_CLK1, 1);
-    si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA);
-    si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_4MA);
-    si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_4MA);
+    si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
+    si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
+    si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
 
+    setIntermediateFrequency();
 
-    si5351->set_freq(
-            static_cast<uint64_t>(getIntermediateFrequency()) * 100,
-            SI5351_CLK1
-    );
 /**/
     state.frequency = START_FREQUENCY;
     state.altFrequency = START_FREQUENCY + 1000;
@@ -454,11 +495,11 @@ void setup() {
 
     setFrequency();
 
-    bands.update();
 
     render();
+    band->loop();
 
-    pano.setup();
+    pano->setup();
 
     txButton->setup();
     freqEncButton->setup();
@@ -474,14 +515,14 @@ void setup() {
     freqEncButton->registerShortPressCallback(&encoderClickHandler);
     freqEncButton->registerLongPressCallback(&switchBand);
 
-    stepButton->registerShortPressCallback(&switchStep);
+    stepButton->registerShortPressCallback(&stepButtonShortClickCb);
     bandButton->registerShortPressCallback(&switchBand);
 
     modeButton->registerShortPressCallback(&switchModulation);
     modeButton->registerLongPressCallback(&switchBacklight);
 
     vfoButton->registerShortPressCallback(&switchVFO);
-    // stepButton->registerShortPressCallback(&switchStep);
+    // stepButton->registerShortPressCallback(&stepButtonShortClickCb);
 
 
     menuButton->registerShortPressCallback(&menuClick);
@@ -492,13 +533,11 @@ void setup() {
     delay(10);
 
     menuPreviousState = currentMenu->isActive();
-
-
     // turn on led
     digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
 
+    band->draw();
 }
-
 
 
 
@@ -514,9 +553,10 @@ void renderRXUI() {
     displayMode();
     displaySMeter();
     setFrequency();
-    displayScale(true);
+    // displayScale(true);
     sMeter.drawLevel(1);
     sMeter.drawLevel(12);
+    band->loop();
 }
 
 
@@ -581,7 +621,7 @@ void loop() {
                     encoderCCW();
                 } else {
                     state.frequency -= state.step;
-
+                    band->loop();
                 }
                 encoderPosition = lastEncoderPosition;
             } else if (lastEncoderPosition < encoderPosition - 2) {
@@ -601,7 +641,7 @@ void loop() {
                     encoderCW();
                 } else {
                     state.frequency += state.step;
-
+                    band->loop();
                 }
                 encoderPosition = lastEncoderPosition;
             }
@@ -650,7 +690,8 @@ void loop() {
             yield();
         }
         if (!currentMenu->isActive() && subMenuScreen == MsgExit) {
-            pano.loop();
+            pano->loop();
+            band->loop();
         }
         yield();
     }

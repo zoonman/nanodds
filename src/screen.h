@@ -17,22 +17,10 @@
 #include "colors.h"
 #include "menu/Action.h"
 
-// display
-#define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
-#define TFT_WIDTH             (uint8_t)160
-#define TFT_QUOTER_WIDTH      (uint8_t)(TFT_WIDTH/4)
-#define GRID                  (uint8_t)(TFT_HEIGHT/16) // 8
-#define SCALE_Y               (uint8_t)(GRID*10)
-#define PANO_Y                (uint8_t)(GRID*11 - 3)
-#define STEP_Y                (uint8_t)(GRID*3)
-#define RIT_Y                 (uint8_t)(GRID*8)
-#define SWR_SCALE_Y           (uint8_t)(GRID*10)
-#define SWR_SCALE_TY          (uint8_t)(SWR_SCALE_Y - GRID)
 
 // setClockDivider()
 // Init Display
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
-volatile uint16_t scalePosX = 0;
 
 
 void textxy(uint16_t x, uint16_t y, const char *text) {
@@ -59,11 +47,7 @@ void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *te
     textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
 }
 
-
-
-
 char oldFreq[STR_BUFFER_SIZE] = "\0";
-
 
 uint8_t symbolLength(char c) {
     switch (c) {
@@ -131,9 +115,6 @@ void displayFrequency() {
 
 
 
-void scaleTriangle(uint16_t c) {
-    tft.fillTriangle(scalePosX, SCALE_Y - 1, scalePosX - SCALE_T, SCALE_Y - SCALE_T - 1, scalePosX + SCALE_T, SCALE_Y - 1 - SCALE_T, c);
-}
 
 void displayMode() {
     if (state.tx) {
@@ -222,7 +203,6 @@ void displaySWRTick(uint8_t value, const char label[]) {
     tft.drawFastVLine(swrx, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
 }
 
-
 void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
     char s[5] = "\0";
     utoa(n, s, 10);
@@ -280,38 +260,6 @@ void displaySWR() {
         displaySWRTick(100, "10");
         tft.drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
         textxy(TFT_WIDTH - 20, SWR_SCALE_TY, ("inf"));
-    }
-}
-
-
-void displayScale(bool redraw) {
-    uint16_t fStep = 500; // kHz
-    uint16_t fStart = 1000; // kHz
-    uint16_t fWidth = 30000; // kHz
-    if (state.band != BANDS) {
-        fStep = 50;
-        fStart = BandsBounds[state.band].start;
-        fWidth = BandsBounds[state.band].width;
-    }
-    auto newScalePosX = static_cast<uint16_t>((state.frequency/1000 - fStart) * TFT_WIDTH / fWidth);
-    if (scalePosX != newScalePosX || redraw) {
-        // draw boundaries
-        tft.drawFastHLine(0, SCALE_Y, TFT_WIDTH-1, COLOR_GRAY_MEDIUM);
-        tft.drawFastVLine(0, SCALE_Y - 2, 5, COLOR_GRAY_MEDIUM);
-        tft.drawFastVLine(TFT_WIDTH-1, SCALE_Y - 2, 5, COLOR_GRAY_MEDIUM);
-        // draw ticks
-        for (uint32_t f = 0; f < fWidth; f += fStep) {
-            tft.drawFastVLine(
-                    static_cast<uint16_t>((f * TFT_WIDTH) / fWidth),
-                    SCALE_Y,
-                    f % (fStep * 2) == 0 ? 4 : 2,
-                    COLOR_GRAY_MEDIUM
-            );
-        }
-        // draw pointer
-        scaleTriangle(ST77XX_BLACK);
-        scalePosX = newScalePosX;
-        scaleTriangle(COLOR_BRIGHT_BLUE);
     }
 }
 

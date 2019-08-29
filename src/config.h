@@ -1,3 +1,6 @@
+#include <Arduino.h>
+
+
 #ifndef NANODDS_CONFIG_H
 #define NANODDS_CONFIG_H
 
@@ -7,7 +10,7 @@
 #define LOWER_RX_BOUND      500000
 
 #define START_FREQUENCY     (uint32_t)1199000
-#define INTERMEDIATE_FREQUENCY 7895000
+#define INTERMEDIATE_FREQUENCY 7997000
 
 // Pins
 
@@ -44,5 +47,43 @@
 
 #define USE_FAST_PINIO
 //#define SPI_DEFAULT_FREQ 4000000
+
+
+// display
+#define TFT_HEIGHT            (uint8_t)ST7735_TFTHEIGHT_128
+#define TFT_WIDTH             (uint8_t)160
+#define TFT_QUOTER_WIDTH      (uint8_t)(TFT_WIDTH/4)
+#define GRID                  (uint8_t)(TFT_HEIGHT/16) // 8
+#define SCALE_Y               (uint8_t)(GRID*10)
+#define PANO_Y                (uint8_t)(GRID*11 - 3)
+#define STEP_Y                (uint8_t)(GRID*3)
+#define RIT_Y                 (uint8_t)(GRID*8)
+#define SWR_SCALE_Y           (uint8_t)(GRID*10)
+#define SWR_SCALE_TY          (uint8_t)(SWR_SCALE_Y - GRID)
+
+#define BANDS                 8
+
+#define SCALE_T               (uint8_t)5
+
+
+// Bands
+struct BandRecord {
+    uint8_t id; // meters
+    uint16_t start; // kHZ
+    uint16_t width; // kHz
+};
+
+#pragma pack(push, 1)
+const static BandRecord BandsBounds[BANDS] = {
+        {160, 1800,  200},
+        {80,  3500,  500},
+        {40,  7000,  300},
+        {30,  10100, 150},
+        {20,  14000, 350},
+        {17,  18068, 100},
+        {15,  21000, 450},
+        {10,  28000, 1700}
+};
+#pragma pack(pop)
 
 #endif //NANODDS_CONFIG_H

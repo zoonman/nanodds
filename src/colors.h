@@ -14,6 +14,10 @@
 #define COLOR_BRIGHT_BLUE     0x1473
 #define COLOR_BAND_BACKGROUND 0x0208
 #define COLOR_GRAY_MEDIUM     0x9CD3
-#define COLOR_DARK_GRAY     0x31a6
+#define COLOR_DARK_GRAY       0x31a6
+
+
+// You can grab or build your palette at https://paletton.com/
+// and convert it here https://www.zoonman.com/projects/cc/
 
 #endif //NANODDS_COLORS_H

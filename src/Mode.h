@@ -28,7 +28,8 @@ enum Message {
     MsgSaveToNewCell,
     MsgErase,
     MsgLoadFromTheCell,
-    MsgErasing
+    MsgErasing,
+    MsgAir
 };
 
 const static char Messages[] PROGMEM = {
@@ -48,6 +49,7 @@ const static char Messages[] PROGMEM = {
         "Erase"
         "Load from the Cell"
         "Erasing..."
+        "AIR"
 };
 
 const static uint8_t MessageLengths[] PROGMEM = {
@@ -66,9 +68,8 @@ const static uint8_t MessageLengths[] PROGMEM = {
         16,
         5,
         18,
-        10
+        10,
+        3
 };
-
-
 
 #endif //NANODDS_MODE_H

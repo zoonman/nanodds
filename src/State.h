@@ -8,8 +8,10 @@
 #include "config.h"
 #include "Mode.h"
 
+
 #ifndef NANODDS_STATE_H
 #define NANODDS_STATE_H
+
 
 /**
  * State will be used to save current active state

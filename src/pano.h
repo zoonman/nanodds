@@ -2,7 +2,6 @@
 //
 // Created by Philipp Tkachev on 2018-12-25.
 //
-#include "bands.h"
 
 #ifndef NANODDS_PANO_H
 #define NANODDS_PANO_H
@@ -88,9 +87,9 @@ public:
     }
 
     uint16_t convertColor(uint16_t c) {
-        uint8_t red = 0;
-        uint8_t green =0;
-        uint8_t blue = 0;
+        uint8_t red = 0u;
+        uint8_t green =0u;
+        uint8_t blue = 0u;
 
         if (c > 768) {
             // red
@@ -109,7 +108,7 @@ public:
             blue = c / 8;
         }
 
-        return ((red) << 15) | ((green) << 5) | (blue);
+        return ((red) << 15) | ((green) << 5u) | (blue);
     }
 
 private:

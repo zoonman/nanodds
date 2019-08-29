@@ -16,6 +16,7 @@ protected:
     uint8_t width{0};
     uint8_t height{0};
     boolean isVisible{false};
+    boolean isRedrawForced{false};
     virtual void draw() = 0;
 public:
     void setVisibility(boolean isVisible);

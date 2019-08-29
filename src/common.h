@@ -8,7 +8,6 @@
 #include <stdint.h>
 #include "State.h"
 
-#define SCALE_T               (uint8_t)5
 #define STR_BUFFER_SIZE       12
 
 
@@ -26,30 +25,13 @@ volatile State state;
 
 volatile uint32_t oFrequency = 0; // Hz
 
+/*
 uint32_t p10(uint8_t i) {
     if (i < 1) return 1;
     return 10 * p10(i - (uint8_t) 1);
 }
+*/
 
-// Bands
-struct BandRecord {
-    uint8_t id; // meters
-    uint16_t start; // kHZ
-    uint16_t width; // kHz
-};
 
-#define BANDS                 8
-#pragma pack(push, 1)
-const static BandRecord BandsBounds[BANDS] = {
-        {160, 1800,  200},
-        {80,  3500,  500},
-        {40,  7000,  300},
-        {30,  10100, 150},
-        {20,  14000, 350},
-        {17,  18068, 100},
-        {15,  21000, 450},
-        {10,  28000, 1700}
-};
-#pragma pack(pop)
 
 #endif //NANODDS_COMMON_H

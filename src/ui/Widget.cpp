@@ -5,9 +5,13 @@
 #include "Widget.h"
 
 void Widget::setVisibility(boolean isVisible) {
-    this->isVisible = isVisible;
+    if (this->isVisible != isVisible) {
+        this->isVisible = isVisible;
+        if (isVisible && !this->isRedrawForced) {
+            this->isRedrawForced = true;
+        }
+    }
 }
-
 
 uint8_t Widget::getLeft() const {
     return left;
