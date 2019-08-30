@@ -16,27 +16,33 @@
 
 class Pano {
 public:
-    explicit Pano(uint8_t pin, Si5351 *pll) {
+    explicit Pano(uint8_t pin, Si5351 *pll, volatile State *state, Display *display) {
         this->pin = pin;
         this->pll = pll;
+        this->state = state;
+        this->display = display;
     }
 
     void setup() {
         // just a stub
     }
 
-    uint32_t loop() {
+    void loop() {
+        if (!this->state->isPanoEnabled) {
+            return;
+        }
 
+        // char b[12];
 
 
         uint16_t fStep; // Hz
         uint32_t panoFreq;
 
-        if (state.band != BANDS) {
-            fStep = BandsBounds[state.band].width * 1000 / WATERFALL_COLS;
-            panoFreq = BandsBounds[state.band].start * 1000;
+        if (state->band != BANDS) {
+            fStep = BandsBounds[state->band].width * 1000 / WATERFALL_COLS;
+            panoFreq = BandsBounds[state->band].start * 1000;
         } else {
-            panoFreq = state.frequency - 50000;
+            panoFreq = state->frequency - 50000;
             fStep = 100000 / WATERFALL_COLS;
         }
         yield();
@@ -45,11 +51,7 @@ public:
         int rv = analogRead(this->pin);
         yield();
         // debug
-        sprintf(b, "%4d", rv);
-        // textxy(0, TFT_HEIGHT /2, b, COLOR_BRIGHT_GREEN, ST77XX_BLACK);
-        if (this->min) {
-            //
-        }
+
         //
         this->PXLT[this->col + WATERFALL_COLS * this->row] = this->convertColor(rv * 50);
         if (++this->col >= WATERFALL_COLS) {
@@ -57,11 +59,11 @@ public:
 
             int8_t rowIndex = this->row;
             // optimized pixel transfer over SPI
-            tft.startWrite();
+            this->display->tft->startWrite();
             for (uint8_t y = 0; y < WATERFALL_ROWS; y++) {
                 // render it
                 for (uint8_t x = 0;x < WATERFALL_COLS; x++) {
-                    tft.writePixel(
+                    this->display->tft->writePixel(
                             x,
                             PANO_Y + WATERFALL_ROWS - y,
                             this->PXLT[x + WATERFALL_COLS * rowIndex]
@@ -71,7 +73,7 @@ public:
                     rowIndex = WATERFALL_ROWS - 1;
                 };
             }
-            tft.endWrite();
+            this->display->tft->endWrite();
             if (++this->row >= WATERFALL_ROWS) {
                 this->row = 0;
             }
@@ -116,6 +118,8 @@ private:
     uint8_t min = 255;
     uint8_t max = 0;
     Si5351 *pll;
+    Display *display;
+    volatile State *state;
     volatile uint16_t PXLT[WATERFALL_COLS * WATERFALL_ROWS] = {0};
 
     volatile uint8_t row = 0, col = 0;

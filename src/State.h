@@ -59,6 +59,7 @@ struct State {
      */
     uint8_t wpm = 10;
     uint8_t swr = 1;
+    bool isPanoEnabled = true;
 };
 
 

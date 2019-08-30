@@ -51,4 +51,4 @@ add_custom_target(
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_executable(${PROJECT_NAME} ${SRC_LIST} src/config.h src/Storage.cpp src/Storage.h src/State.h src/Mode.h src/ui/Spinner.cpp src/ui/Spinner.h src/ui/Widget.cpp src/ui/Widget.h src/ui/Band.h src/ui/Band.cpp)
+add_executable(${PROJECT_NAME} ${SRC_LIST} src/config.h src/Storage.cpp src/Storage.h src/State.h src/Mode.h src/ui/Spinner.cpp src/ui/Spinner.h src/ui/Widget.cpp src/ui/Widget.h src/ui/Band.h src/ui/Band.cpp src/ui/SMeter.h src/ui/SMeter.cpp)

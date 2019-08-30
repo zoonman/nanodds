@@ -8,7 +8,7 @@
 #include <si5351.h>
 #include <wiring_private.h>
 
-#include "smeter.h"
+#include "ui/SMeter.h"
 #include "ui/Band.h"
 #include "button.h"
 #include "pano.h"
@@ -39,12 +39,12 @@ Button *vfoButton = new Button(VFO_BTN_PIN);   // PC5
 Button *stepButton = new Button(STEP_BTN_PIN); // PA5
 Button *bandButton = new Button(BAND_BTN_PIN); // PA4
 
-Pano *pano = new Pano(PANO_INPUT_PIN, si5351);
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
 Display *display = new Display(&tft);
 SMeter sMeter(SMETER_INPUT_PIN, display);
 
+Pano *pano = new Pano(PANO_INPUT_PIN, si5351, &state, display);
 Band *band = new Band(display, &state);
 
 
@@ -61,6 +61,7 @@ Message settingsMenuMessages[] = {
         MsgSSBOffset,
         MsgDDSCalibration,
         MsgSWRCalibration,
+        MsgTogglePano,
         MsgExit
 };
 
@@ -358,6 +359,10 @@ void callMenuFunc(Message m) {
         case MsgErase:
             currentMenu->exit();
             eraseEeprom();
+            break;
+        case MsgTogglePano:
+            state.isPanoEnabled = ! state.isPanoEnabled;
+            currentMenu->exit();
             break;
         case MsgExit:
         case MsgSSBOffset:
