@@ -5,7 +5,6 @@
 #ifndef NANODDS_COMMON_H
 #define NANODDS_COMMON_H
 
-#include <stdint.h>
 #include "State.h"
 
 #define STR_BUFFER_SIZE       12
