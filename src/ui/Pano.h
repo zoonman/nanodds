@@ -14,7 +14,7 @@
         #define WATERFALL_COLS 160
     #endif
 
-class Pano {
+class Pano: Widget {
 public:
     explicit Pano(uint8_t pin, Si5351 *pll, volatile State *state, Display *display) {
         this->pin = pin;
@@ -23,17 +23,14 @@ public:
         this->display = display;
     }
 
-    void setup() {
-        // just a stub
+    void draw() override {
+
     }
 
-    void loop() {
+    void loop() override {
         if (!this->state->isPanoEnabled) {
             return;
         }
-
-        // char b[12];
-
 
         uint16_t fStep; // Hz
         uint32_t panoFreq;

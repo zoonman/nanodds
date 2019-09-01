@@ -31,6 +31,7 @@ enum Message {
     MsgErasing,
     MsgAir,
     MsgTogglePano,
+    MsgSSB85
 };
 
 const static char Messages[] PROGMEM = {
@@ -52,6 +53,7 @@ const static char Messages[] PROGMEM = {
         "Erasing..."
         "AIR"
         "Pano on/off"
+        "SSB85 Transceiver"
 };
 
 const static uint8_t MessageLengths[] PROGMEM = {
@@ -72,7 +74,8 @@ const static uint8_t MessageLengths[] PROGMEM = {
         18,
         10,
         3,
-        11
+        11,
+        17
 };
 
 #endif //NANODDS_MODE_H

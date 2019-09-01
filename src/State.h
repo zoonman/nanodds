@@ -20,7 +20,7 @@ struct State {
     uint32_t frequency = 0;
     uint32_t iFrequency = INTERMEDIATE_FREQUENCY;// max:-5.69dB 7.998928MHz
 
-    uint32_t ssbOffset = 1500;
+    int32_t ssbOffset = 1500;
     uint32_t cwOffset = 800;
     uint32_t altFrequency = 0;
     uint32_t step = 100;

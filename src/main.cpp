@@ -11,7 +11,7 @@
 #include "ui/SMeter.h"
 #include "ui/Band.h"
 #include "button.h"
-#include "pano.h"
+#include "ui/Pano.h"
 #include "swr.h"
 #include "menu/Action.h"
 #include "menu/Menu.h"
@@ -83,6 +83,7 @@ Storage *storage = new Storage(0x50);
 
 
 Spinner<uint32_t> *spinner = new Spinner<uint32_t>(display);
+Spinner<int32_t> *ssbSpinner = new Spinner<int32_t>(display);
 
 
 int64_t getIntermediateFrequency() {
@@ -233,11 +234,17 @@ void switchVFO() {
 
 
 void stepButtonShortClickCb() {
-    if (subMenuScreen != MsgExit) {
-        spinner->changeStep();
-        spinner->loop();
-    } else {
-        changeFrequencyStep(1);
+    switch (subMenuScreen) {
+        case MsgIF:
+            spinner->changeStep();
+            spinner->loop();
+            break;
+        case MsgSSBOffset:
+            ssbSpinner->changeStep();
+            ssbSpinner->loop();
+            break;
+        default:
+            changeFrequencyStep(1);
     }
 }
 
@@ -297,7 +304,7 @@ void eraseEeprom() {
 void displayIntermediateFrequencySettings() {
     display->clear();
     subMenuScreen = MsgIF;
-    display->textxy(20, 10, F("SSB85 Transceiver"), ST7735_WHITE, ST7735_BLACK);
+    display->drawRoundTextBox(0, 0, TFT_WIDTH, 22, MsgSSB85, ST7735_WHITE, ST7735_BLACK);
     spinner->setLeft(5);
     spinner->setLabel(MsgIF);
     spinner->setTop(40);
@@ -307,8 +314,23 @@ void displayIntermediateFrequencySettings() {
     spinner->setVisibility(true);
     spinner->setValue(state.iFrequency);
     spinner->draw();
-    // if (freqEncoder.interruptArgs)
 }
+
+void displaySSBOffsetSettings() {
+    display->clear();
+    subMenuScreen = MsgSSBOffset;
+    display->drawRoundTextBox(0, 0, TFT_WIDTH, 22, MsgSSB85, ST7735_WHITE, ST7735_BLACK);
+    ssbSpinner->setLeft(5);
+    ssbSpinner->setLabel(MsgSSBOffset);
+    ssbSpinner->setTop(40);
+    ssbSpinner->setWidth(110);
+    ssbSpinner->setHeight(32);
+    ssbSpinner->setFocus(true);
+    ssbSpinner->setVisibility(true);
+    ssbSpinner->setValue(state.ssbOffset);
+    ssbSpinner->draw();
+}
+
 
 class App {
     private:
@@ -364,8 +386,11 @@ void callMenuFunc(Message m) {
             state.isPanoEnabled = ! state.isPanoEnabled;
             currentMenu->exit();
             break;
-        case MsgExit:
         case MsgSSBOffset:
+            currentMenu->exit();
+            displaySSBOffsetSettings();
+            break;
+        case MsgExit:
         case MsgCW:
         case MsgDDSCalibration:
         case MsgSWRCalibration:
@@ -393,6 +418,12 @@ void encoderClickHandler() {
                 saveStateToACell();
                 subMenuScreen = MsgExit;
                 break;
+            case MsgSSBOffset:
+                state.ssbOffset = ssbSpinner->getValue();
+                display->clear();
+                saveStateToACell();
+                subMenuScreen = MsgExit;
+                break;
             case MsgAbout:
                 display->clear();
                 render();
@@ -416,6 +447,12 @@ void encoderCW() {
             state.iFrequency = spinner->getValue();
             setIntermediateFrequency();
             break;
+        case MsgSSBOffset:
+            ssbSpinner->inc();
+            ssbSpinner->loop();
+            state.ssbOffset = ssbSpinner->getValue();
+            setIntermediateFrequency();
+            break;
         default:
             ;
     }
@@ -427,6 +464,12 @@ void encoderCCW() {
             spinner->dec();
             spinner->loop();
             state.iFrequency = spinner->getValue();
+            setIntermediateFrequency();
+            break;
+        case MsgSSBOffset:
+            ssbSpinner->dec();
+            ssbSpinner->loop();
+            state.ssbOffset = ssbSpinner->getValue();
             setIntermediateFrequency();
             break;
         default:
@@ -503,8 +546,6 @@ void setup() {
 
     render();
     band->loop();
-
-    pano->setup();
 
     txButton->setup();
     freqEncButton->setup();

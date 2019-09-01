@@ -144,3 +144,4 @@ uint8_t Spinner<T>::lg() {
 
 // required to make a proper linker work
 template class Spinner<uint32_t>;
+template class Spinner<int32_t>;
