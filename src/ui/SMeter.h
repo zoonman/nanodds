@@ -26,6 +26,8 @@ public:
 private:
     volatile uint8_t pl = 1;
     int pd = 0;
+    int pdMin = 512;
+    int pdMax = 0;
     uint8_t pin;
 };
 

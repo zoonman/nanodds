@@ -18,7 +18,6 @@
 #include "menu/Action.h"
 
 
-// setClockDivider()
 // Init Display
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
@@ -136,17 +135,6 @@ void displayModulation() {
     );
 }
 
-void displayVFO() {
-    drawRoundTextBox(
-        TFT_QUOTER_WIDTH + 1u,
-        0,
-        TFT_QUOTER_WIDTH - 2u,
-        15,
-        (state.isAltFrequency ? "VFO B" : "VFO A"),
-        COLOR_GRAY_MEDIUM,
-        COLOR_DARK_GREEN
-    );
-}
 
 void changeFrequencyStep(int8_t offset) {
     if (offset < 0 && state.step > 1) {
@@ -222,13 +210,13 @@ void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
     while (bf >= 0) buf[bf--] = ' ';
 }
 
+
+    /**
 #define DELTA 1
 void displaySWR() {
     // 1..1.5..2..3...inf
     uint8_t swr = (uint8_t)(analogRead(A1) / 4); // 10 = 1, 15 = 1.5, 20 = 2, etc, max is 255, 1024
-    /**
      * SWR is calculated as ratio REFLECTED/DIRECT POWER
-     */
     swr = swr > 10 ? swr : (uint8_t)10;
 
     if (swr > state.swr + DELTA || swr < state.swr - DELTA) {
@@ -262,5 +250,6 @@ void displaySWR() {
         textxy(TFT_WIDTH - 20, SWR_SCALE_TY, ("inf"));
     }
 }
+     */
 
 #endif //NANODDS_SCREEN_H

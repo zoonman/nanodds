@@ -12,6 +12,11 @@ enum Mode {
 const static char *ModeNames[] = {"CW", "LSB", "USB", "AM", "FM"};
 #pragma pack(pop)
 
+
+enum VFOType {
+    VFO_A = 0, VFO_B, VFO_SPLIT
+};
+
 enum Message {
     MsgMenu = 0,
     MsgMemory,
@@ -31,7 +36,15 @@ enum Message {
     MsgErasing,
     MsgAir,
     MsgTogglePano,
-    MsgSSB85
+    MsgSSB85,
+    MsgSaving,
+    MsgInvalidCRC,
+    MsgOK,
+    MsgRX,
+    MsgTX,
+    MsgVFOA,
+    MsgVFOB,
+    MsgVFOSPLIT,
 };
 
 const static char Messages[] PROGMEM = {
@@ -54,6 +67,14 @@ const static char Messages[] PROGMEM = {
         "AIR"
         "Pano on/off"
         "SSB85 Transceiver"
+        "Saving..."
+        "Invalid CRC"
+        "OK"
+        "RX"
+        "TX"
+        "VFO A"
+        "VFO B"
+        "SPLIT"
 };
 
 const static uint8_t MessageLengths[] PROGMEM = {
@@ -75,7 +96,15 @@ const static uint8_t MessageLengths[] PROGMEM = {
         10,
         3,
         11,
-        17
+        17,
+        9,
+        11,
+        2,
+        2,
+        2,
+        5,
+        5,
+        5
 };
 
 #endif //NANODDS_MODE_H

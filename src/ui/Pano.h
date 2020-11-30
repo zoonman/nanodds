@@ -21,6 +21,7 @@ public:
         this->pll = pll;
         this->state = state;
         this->display = display;
+        pinMode(this->pin, INPUT);
     }
 
     void draw() override {
@@ -78,10 +79,15 @@ public:
 
         panoFreq = panoFreq + fStep * this->col;
         yield();
-        this->pll->set_freq(
-                static_cast<uint64_t>(panoFreq + 16000000) * 100ULL,
-                SI5351_CLK2
-        );
+        // guard rails around working frequency
+        if (panoFreq < state->frequency - 3000 || panoFreq > state->frequency + 3000) {
+            this->pll->set_freq(
+                    static_cast<uint64_t>(panoFreq + 455000) * 100ULL,
+                    SI5351_CLK2
+            );
+        } else {
+            // we need some flag to read current S-meter
+        }
         yield();
     }
 

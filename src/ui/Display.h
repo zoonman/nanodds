@@ -29,7 +29,7 @@ public:
     void textxy(uint16_t x, uint16_t y, String *text, uint16_t c, uint16_t b);
     void textxy(uint16_t x, uint16_t y, const __FlashStringHelper *ifsh, uint16_t c, uint16_t b);
     void textxy(uint16_t x, uint16_t y, const char text[], uint16_t c, uint16_t b);
-    // void textxy(uint16_t x, uint16_t y, Message message, uint16_t c, uint16_t bg);
+    void textxy(uint16_t x, uint16_t y, Message message, uint16_t c, uint16_t bg);
     void drawTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message message, uint16_t c, uint16_t bg, TextAlignment alignment);
     void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, Message message, uint16_t c, uint16_t bg);
     void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, String *text, uint16_t c, uint16_t bg);

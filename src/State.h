@@ -7,22 +7,35 @@
 
 #include "config.h"
 #include "Mode.h"
-
+#include "AppSettings.h"
 
 #ifndef NANODDS_STATE_H
 #define NANODDS_STATE_H
+
+
 
 
 /**
  * State will be used to save current active state
  */
 struct State {
-    uint32_t frequency = 0;
-    uint32_t iFrequency = INTERMEDIATE_FREQUENCY;// max:-5.69dB 7.998928MHz
+    uint32_t frequency = 1200000;
 
-    int32_t ssbOffset = 1500;
-    uint32_t cwOffset = 800;
-    uint32_t altFrequency = 0;
+    /**
+     * @deprecated Use settings instead
+     * */
+    // uint32_t iFrequency = INTERMEDIATE_FREQUENCY;// max:-5.69dB 7.998928MHz
+    /**
+     * @deprecated
+     * */
+    // int32_t ssbOffset = 1500;
+    /**
+     * @deprecated Use settings instead
+     * */
+    // uint32_t cwOffset = 800;
+
+
+    uint32_t altFrequency = 1600000;
     uint32_t step = 100;
     /**
      *  Receiver Incremental Tuning
@@ -40,28 +53,30 @@ struct State {
      * Current active mode
      */
     Mode mode = LSB;
+    VFOType vfo = VFO_A;
     /**
      * Tx?
      */
     bool tx = false;
     bool isAltFrequency = false;
     /**
-     * CW Words per minute
-     *
-     * The basic element of Morse code is the dot and all other elements
-     * can be defined in terms of multiples of the dot length.
-     * The word PARIS is used because this is the length of a typical word
-     * in English plain text, it has a total length of 50 dot lengths.
-     * If the word PARIS can be sent ten times in a minute using
-     * normal Morse code timing then the code speed is 10 WPM.
-     *
-     * dot_ms = 60 * 1000 / (wpm * 50) = 1200 / wpm
-     */
+ * @deprecated Use settings instead
+ * */
     uint8_t wpm = 10;
     uint8_t swr = 1;
+    /**
+ * @deprecated Use settings instead
+ * */
     bool isPanoEnabled = true;
 };
 
+State StateFromVolatile(State volatile const& o);
+State SetVolatileState(State volatile & r, State o);
+
+struct MemoryStateCell {
+    State state;
+    uint32_t crc{};
+};
 
 // Memory Cells
 struct Memory {

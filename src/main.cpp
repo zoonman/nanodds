@@ -17,6 +17,9 @@
 #include "menu/Menu.h"
 #include "Storage.h"
 #include "ui/Spinner.h"
+#include "Adafruit_MCP23017.h"
+
+#include <CRC32.h>
 
 
 volatile long setupCalls = 0;
@@ -31,11 +34,10 @@ Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
 Si5351 *si5351 = new Si5351();
 
 
-
 Button *txButton = new Button(TX_BTN_PIN);
-Button *menuButton = new Button(MEM_BTN_PIN);   // PC3
+Button *menuButton = new Button(MEM_BTN_PIN);   // PC5
 Button *modeButton = new Button(MODE_BTN_PIN); // PC4
-Button *vfoButton = new Button(VFO_BTN_PIN);   // PC5
+Button *vfoButton = new Button(VFO_BTN_PIN);   // PC3
 Button *stepButton = new Button(STEP_BTN_PIN); // PA5
 Button *bandButton = new Button(BAND_BTN_PIN); // PA4
 
@@ -45,8 +47,8 @@ Display *display = new Display(&tft);
 SMeter sMeter(SMETER_INPUT_PIN, display);
 
 Pano *pano = new Pano(PANO_INPUT_PIN, si5351, &state, display);
-Band *band = new Band(display, &state);
-
+Adafruit_MCP23017 mcp;
+Band *band = new Band(display, &state, &mcp);
 
 Message mainMenuMessages[] = {
         MsgMemory,
@@ -81,42 +83,86 @@ Menu *currentMenu = &mainMenu;
 Storage *storage = new Storage(0x50);
 
 
-
-Spinner<uint32_t> *spinner = new Spinner<uint32_t>(display);
+Spinner<uint32_t> *ifSpinner = new Spinner<uint32_t>(display);
 Spinner<int32_t> *ssbSpinner = new Spinner<int32_t>(display);
 
+size_t memoryCellIndex = 1;
 
 int64_t getIntermediateFrequency() {
     int64_t fOffset;
     switch (state.mode) {
         case LSB:
-            fOffset = state.ssbOffset;
+            fOffset = settings.ssbOffset;
             break;
         case USB:
-            fOffset = -state.ssbOffset;
+            fOffset = -settings.ssbOffset;
             break;
         case CW:
-            fOffset = -state.cwOffset;
+            fOffset = -settings.cwOffset;
             break;
         default:
             fOffset = 0;
     }
-    return state.iFrequency + fOffset;
+    return settings.iFrequency + fOffset;
 }
 
 void setFrequency() {
     oFrequency = state.frequency;
+    uint64_t f = 0;
+
+    // in a split mode we receive on one frequency and transmit on alternative frequency
+    if (VFO_SPLIT == state.vfo) {
+        if (state.tx) {
+            f = state.altFrequency + getIntermediateFrequency();
+        } else {
+            f = state.frequency + getIntermediateFrequency() + (state.isRIT ? state.RITFrequency : 0);
+        }
+    } else {
+        // normally we apply RIT offset in RX and transmit on a correct frequency
+        // f = state.frequency + getIntermediateFrequency() + (state.isRIT && !state.tx ? state.RITFrequency : 0);
+         //f = state.frequency + settings.iFrequency - settings.ssbOffset + (state.isRIT && !state.tx ? state.RITFrequency : 0);
+         f = state.frequency + settings.iFrequency + (state.isRIT && !state.tx ? state.RITFrequency : 0);
+        //f = state.frequency;
+    }
+
+    // @todo: add reverse in future
     si5351->set_freq(
-            static_cast<uint64_t>(state.frequency + getIntermediateFrequency() +
-                                  (state.isRIT && !state.tx ? state.RITFrequency : 0)) * 100ULL,
+            static_cast<uint64_t>(f) * 100ULL,
             SI5351_CLK0
     );
+    yield();
     if (!currentMenu->isActive()) {
         displayFrequency();
         band->loop();
-        // displayScale(false);
     }
 }
+
+
+void displayVFO() {
+    Message m = MsgVFOA;
+    switch (state.vfo) {
+        case VFO_A:
+            m = MsgVFOA;
+            break;
+        case VFO_B:
+            m = MsgVFOB;
+            break;
+        case VFO_SPLIT:
+            m = MsgVFOSPLIT;
+            break;
+    }
+    display->drawRoundTextBox(
+        TFT_QUOTER_WIDTH + 1u,
+        0,
+        TFT_QUOTER_WIDTH - 2u,
+        15,
+        m,
+        COLOR_GRAY_MEDIUM,
+        COLOR_DARK_GREEN
+
+    );
+}
+
 
 void render() {
     tft.fillScreen(ST77XX_BLACK);
@@ -124,12 +170,10 @@ void render() {
     displayMode();
     band->draw();
     changeFrequencyStep(0);
-    // displayScale(true);
     displayFrequency();
     sMeter.setup();
     displayRIT();
     displayVFO();
-    //displaySWR();
 }
 
 /*
@@ -145,10 +189,8 @@ void switchBand() {
     switch (subMenuScreen) {
         case MsgExit:
             band->next();
-            // displayScale(true);
             break;
-        default:
-            ;
+        default:;
             // nothing
     }
 }
@@ -159,6 +201,7 @@ void setIntermediateFrequency() {
             static_cast<uint64_t>(getIntermediateFrequency()) * 100ULL,
             SI5351_CLK1
     );
+    yield();
 }
 
 void switchBacklight() {
@@ -213,31 +256,50 @@ void switchModulation() {
                     break;
             }
             displayModulation();
-            setFrequency();
+            setIntermediateFrequency();
 
+            setFrequency();
             break;
-        default:
-            ;
+        default:;
     }
+}
+
+void cycleAltFrequency() {
+    uint32_t t = state.frequency;
+    state.frequency = state.altFrequency;
+    state.altFrequency = t;
 }
 
 void switchVFO() {
     if (subMenuScreen != MsgExit) {
-        state.isAltFrequency = !state.isAltFrequency;
-        uint32_t t = state.frequency;
-        state.frequency = state.altFrequency;
-        state.altFrequency = t;
-        displayVFO();
-        setFrequency();
+        return;
     }
+    switch (state.vfo) {
+        case VFO_A:
+            state.vfo = VFO_B;
+            cycleAltFrequency();
+        break;
+        case VFO_B:
+            state.vfo = VFO_SPLIT;
+            cycleAltFrequency();
+            break;
+        case VFO_SPLIT:
+            state.vfo = VFO_A;
+            break;
+    }
+
+    displayVFO();
+    setFrequency();
+    setIntermediateFrequency();
 }
+
 
 
 void stepButtonShortClickCb() {
     switch (subMenuScreen) {
         case MsgIF:
-            spinner->changeStep();
-            spinner->loop();
+            ifSpinner->changeStep();
+            ifSpinner->loop();
             break;
         case MsgSSBOffset:
             ssbSpinner->changeStep();
@@ -262,15 +324,70 @@ void exitMenu() {
     currentMenu->exit();
 }
 
-void saveStateToACell() {
-    display->clear();
-    display->textxy(20, 70, F("Saving..."), ST7735_WHITE, ST7735_BLACK);
-    EEPROM.put(0, state);
-
+void loadSettings() {
+    MemorySettingsCell as;
+    EEPROM.get(0, as);
+    uint32_t asCrc = CRC32::calculate(&as.settings, 1);
+    if (asCrc == as.crc) {
+        settings.iFrequency = as.settings.iFrequency;
+        settings.ssbOffset = as.settings.ssbOffset;
+        settings.cwOffset = as.settings.cwOffset;
+        settings.isPanoEnabled = as.settings.isPanoEnabled;
+    }
     display->clear();
     render();
-    // storage->saveState(&state, 0);
-    // exitMenu();
+    setFrequency();
+    setIntermediateFrequency();
+}
+
+void saveSettings() {
+    MemorySettingsCell msc;
+    msc.settings = settings;
+    msc.crc = CRC32::calculate(
+            &(msc.settings),
+            1
+    );
+    EEPROM.put(0, msc);
+}
+
+void loadStateFromCell(size_t cellId) {
+    display->clear();
+    display->textxy(20, 30, MsgLoadFromTheCell, ST7735_WHITE, ST7735_BLACK);
+
+    auto csz = (EEPROM.length() - sizeof(MemorySettingsCell)) / sizeof(MemoryStateCell);
+    display->textxy(20, 40, String(csz).c_str(), ST7735_WHITE, ST7735_BLACK);
+
+    MemoryStateCell mc;
+    EEPROM.get(cellId * sizeof(mc) + sizeof(MemorySettingsCell), mc);
+
+    uint32_t crc1 = CRC32::calculate(&mc.state, 1);
+
+    if (crc1 == mc.crc) {
+        // valid crc
+        SetVolatileState(state, mc.state);
+        display->textxy(20, 90, MsgOK, ST7735_GREEN, ST7735_BLACK);
+    } else {
+        display->textxy(20, 90, MsgInvalidCRC, ST7735_RED, ST7735_BLACK);
+        delay(1000);
+    }
+    display->clear();
+    render();
+}
+
+void saveStateToACell(size_t cellId) {
+    display->clear();
+    display->textxy(20, 70, MsgSaving, ST7735_WHITE, ST7735_BLACK);
+    MemoryStateCell mc;
+    mc.state = StateFromVolatile(state);
+    mc.crc = CRC32::calculate(
+            &(mc.state),
+            1
+    );
+    EEPROM.put(cellId * sizeof(mc) + sizeof(MemorySettingsCell), mc);
+    yield();
+    delay(1000);
+    display->clear();
+    render();
 }
 
 void displayAbout() {
@@ -284,17 +401,78 @@ void displayAbout() {
     display->textxy(0, 110, F("Built by Philipp Tkachev"), COLOR_DARK_GREEN, ST7735_BLACK);
 }
 
+
 void displayAllEeprom() {
-    display->clear();
-    EEPROM.get(0, state);
-    subMenuScreen = MsgExit;
-    render();
+
+    display->drawRoundTextBox(
+            0,
+            0,
+            display->tft->width(),
+            MENU_ITEM_HEIGHT,
+            subMenuScreen,
+            ST77XX_WHITE,
+            ST77XX_BLUE
+    );
+
+    auto memoryPage = (memoryCellIndex - 1) / MAX_MENU_ACTIONS_PER_SCREEN;
+
+    auto lib = 1 + memoryPage * MAX_MENU_ACTIONS_PER_SCREEN;
+    auto uib = 1 + (memoryPage + 1) * MAX_MENU_ACTIONS_PER_SCREEN;
+
+    if (uib > 100) {
+        uib = 100;
+    }
+
+    for (size_t menuIndex = lib; menuIndex < uib;) {
+        MemoryStateCell mc;
+
+        EEPROM.get(menuIndex * sizeof(mc), mc);
+        uint32_t crc1 = CRC32::calculate(
+                &mc.state,
+                1
+        );
+        //String mt(menuIndex);
+
+        uint16_t color = COLOR_GRAY_MEDIUM;
+        char buffer[32];
+        if (crc1 == mc.crc) {
+            sprintf(buffer,
+                    "%2d. %8lu %s %3s %+4d",
+                    menuIndex,
+                    (mc.state.isAltFrequency ? mc.state.altFrequency : mc.state.frequency),
+                    (mc.state.isAltFrequency ? "B" : "A"),
+                    ModeNames[mc.state.mode],
+                    (mc.state.isRIT ? mc.state.RITFrequency : 0)
+            );
+        } else {
+            sprintf(buffer,
+                    "%2d. -- %10s",
+                    menuIndex,
+                    ""
+            );
+            color = COLOR_DARK_GRAY;
+        }
+
+        auto isActive = menuIndex == memoryCellIndex;
+        String b1(buffer);
+        display->drawRoundTextBox(
+                MENU_ITEM_HEIGHT / 2,
+                static_cast<uint8_t>((menuIndex - 1) % MAX_MENU_ACTIONS_PER_SCREEN * MENU_ITEM_HEIGHT)
+                + MENU_ITEM_HEIGHT,
+                static_cast<uint8_t>(display->tft->width() - MENU_ITEM_HEIGHT),
+                MENU_ITEM_HEIGHT,
+                &b1,
+                isActive ? COLOR_BRIGHT_GREEN : color,
+                isActive ? COLOR_DARK_GREEN : ST77XX_BLACK
+        );
+        menuIndex++;
+    }
 }
 
 void eraseEeprom() {
     display->clear();
     display->drawRoundTextBox(0, 0, TFT_WIDTH, TFT_HEIGHT, MsgErasing, ST7735_WHITE, ST7735_BLACK);
-    for (int i = 0 ; i < EEPROM.length() ; i++) {
+    for (int i = 0; i < EEPROM.length(); i++) {
         EEPROM.write(i, 255);
     }
     display->clear();
@@ -305,15 +483,15 @@ void displayIntermediateFrequencySettings() {
     display->clear();
     subMenuScreen = MsgIF;
     display->drawRoundTextBox(0, 0, TFT_WIDTH, 22, MsgSSB85, ST7735_WHITE, ST7735_BLACK);
-    spinner->setLeft(5);
-    spinner->setLabel(MsgIF);
-    spinner->setTop(40);
-    spinner->setWidth(110);
-    spinner->setHeight(32);
-    spinner->setFocus(true);
-    spinner->setVisibility(true);
-    spinner->setValue(state.iFrequency);
-    spinner->draw();
+    ifSpinner->setLeft(5);
+    ifSpinner->setLabel(MsgIF);
+    ifSpinner->setTop(40);
+    ifSpinner->setWidth(110);
+    ifSpinner->setHeight(32);
+    ifSpinner->setFocus(true);
+    ifSpinner->setVisibility(true);
+    ifSpinner->setValue(settings.iFrequency);
+    ifSpinner->draw();
 }
 
 void displaySSBOffsetSettings() {
@@ -327,21 +505,21 @@ void displaySSBOffsetSettings() {
     ssbSpinner->setHeight(32);
     ssbSpinner->setFocus(true);
     ssbSpinner->setVisibility(true);
-    ssbSpinner->setValue(state.ssbOffset);
+    ssbSpinner->setValue(settings.ssbOffset);
     ssbSpinner->draw();
 }
 
 
 class App {
-    private:
+private:
     Task **tasks;
     size_t length = 0;
     size_t nextTask = 0;
 
     void AddWidget(Task *task) {
         size_t nl = ++this->length;
-        this->tasks = (Task * *)realloc(this->tasks, nl * sizeof(*task));
-        this->tasks[this->length-1] = task;
+        this->tasks = (Task **) realloc(this->tasks, nl * sizeof(*task));
+        this->tasks[this->length - 1] = task;
     }
 
     void loop() {
@@ -374,16 +552,30 @@ void callMenuFunc(Message m) {
             currentMenu->exit();
             displayIntermediateFrequencySettings();
             break;
+        case MsgSaveToNewCell:
+            currentMenu->exit();
+            display->clear();
+            if (subMenuScreen == MsgSaveToNewCell) {
+            } else {
+                subMenuScreen = MsgSaveToNewCell;
+                displayAllEeprom();
+            }
+            break;
         case MsgLoadFromTheCell:
             currentMenu->exit();
-            displayAllEeprom();
+            display->clear();
+            if (subMenuScreen == MsgLoadFromTheCell) {
+            } else {
+                subMenuScreen = MsgLoadFromTheCell;
+                displayAllEeprom();
+            }
             break;
         case MsgErase:
             currentMenu->exit();
             eraseEeprom();
             break;
         case MsgTogglePano:
-            state.isPanoEnabled = ! state.isPanoEnabled;
+            state.isPanoEnabled = !state.isPanoEnabled;
             currentMenu->exit();
             break;
         case MsgSSBOffset:
@@ -401,8 +593,7 @@ void callMenuFunc(Message m) {
             display->clear();
             render();
             break;
-        default:
-            ;
+        default:;
     }
 }
 
@@ -412,16 +603,26 @@ void encoderClickHandler() {
     } else if (subMenuScreen != MsgExit) {
         //
         switch (subMenuScreen) {
+            case MsgLoadFromTheCell:
+                loadStateFromCell(memoryCellIndex);
+                subMenuScreen = MsgExit;
+                break;
+            case MsgSaveToNewCell:
+                saveStateToACell(memoryCellIndex);
+                subMenuScreen = MsgExit;
+                break;
             case MsgIF:
-                state.iFrequency = spinner->getValue();
+                settings.iFrequency = ifSpinner->getValue();
                 display->clear();
-                saveStateToACell();
+                saveSettings();
+                saveStateToACell(0);
                 subMenuScreen = MsgExit;
                 break;
             case MsgSSBOffset:
-                state.ssbOffset = ssbSpinner->getValue();
+                settings.ssbOffset = ssbSpinner->getValue();
                 display->clear();
-                saveStateToACell();
+                saveSettings();
+                saveStateToACell(0);
                 subMenuScreen = MsgExit;
                 break;
             case MsgAbout:
@@ -429,8 +630,7 @@ void encoderClickHandler() {
                 render();
                 subMenuScreen = MsgExit;
                 break;
-            default:
-                ;
+            default:;
         }
     } else {
         state.isRIT = !state.isRIT;
@@ -441,45 +641,64 @@ void encoderClickHandler() {
 
 void encoderCW() {
     switch (subMenuScreen) {
+        case MsgLoadFromTheCell:
+        case MsgSaveToNewCell:
+            if (memoryCellIndex < 97) {
+                memoryCellIndex++;
+                displayAllEeprom();
+            }
+            break;
         case MsgIF:
-            spinner->inc();
-            spinner->loop();
-            state.iFrequency = spinner->getValue();
+            ifSpinner->inc();
+            ifSpinner->loop();
+            settings.iFrequency = ifSpinner->getValue();
             setIntermediateFrequency();
+            setFrequency();
             break;
         case MsgSSBOffset:
             ssbSpinner->inc();
             ssbSpinner->loop();
-            state.ssbOffset = ssbSpinner->getValue();
+            settings.ssbOffset = ssbSpinner->getValue();
             setIntermediateFrequency();
+            setFrequency();
             break;
-        default:
-            ;
+        default:;
     }
 }
 
 void encoderCCW() {
     switch (subMenuScreen) {
+        case MsgLoadFromTheCell:
+        case MsgSaveToNewCell:
+
+            if (memoryCellIndex > 1) {
+                memoryCellIndex--;
+                displayAllEeprom();
+            }
+            break;
         case MsgIF:
-            spinner->dec();
-            spinner->loop();
-            state.iFrequency = spinner->getValue();
+            ifSpinner->dec();
+            ifSpinner->loop();
+            settings.iFrequency = ifSpinner->getValue();
             setIntermediateFrequency();
+            setFrequency();
             break;
         case MsgSSBOffset:
             ssbSpinner->dec();
             ssbSpinner->loop();
-            state.ssbOffset = ssbSpinner->getValue();
+            settings.ssbOffset = ssbSpinner->getValue();
             setIntermediateFrequency();
+            setFrequency();
+
             break;
-        default:
-            ;
+        default:;
     }
 }
 
 /****************************************************************
  *
  *   SETUP
+    // put your setup code here, to run once:
  *
  ****************************************************************/
 
@@ -493,24 +712,17 @@ void setup() {
     pinMode(BACKLIGHT_PIN, OUTPUT);
     digitalWrite(BACKLIGHT_PIN, HIGH);
 
-
     pinMode(TFT_BACKLIGHT_PIN, OUTPUT);
 
-
-    // analogWrite(BACKLIGHT_PIN, 250);
     si5351->init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
-
-
+    yield();
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-
-    // put your setup code here, to run once:
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
 
     loopMS = millis();
 
     band->setVisibility(true);
-
 
     //
     //
@@ -526,23 +738,28 @@ void setup() {
     //Serial.println(TWBR);
     //Serial.println(TWSR);
     si5351->output_enable(SI5351_CLK0, 1);
+    si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA);
+    yield();
     si5351->output_enable(SI5351_CLK1, 1);
-    si5351->output_enable(SI5351_CLK1, 1);
-    si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_8MA);
-    si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_8MA);
-    si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
+    yield();
+    si5351->output_enable(SI5351_CLK2, 1);
 
-    setIntermediateFrequency();
+    si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
+    si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
+    yield();
 
 /**/
-    state.frequency = START_FREQUENCY;
-    state.altFrequency = START_FREQUENCY + 1000;
+    // state.frequency = START_FREQUENCY;
+    // state.altFrequency = START_FREQUENCY + 1000;
+    loadSettings();
+    loadStateFromCell(0);
 
+    setIntermediateFrequency();
     setFrequency();
+
     freqEncoder.write(encoderPosition);
 
     setFrequency();
-
 
     render();
     band->loop();
@@ -572,11 +789,26 @@ void setup() {
 
 
     menuButton->registerShortPressCallback(&menuClick);
-    //delay(100);
+    delay(10);
+
+    mcp.begin(0);
+
+    mcp.pinMode(0, OUTPUT);
+
+    mcp.pinMode(1, OUTPUT);
+    mcp.digitalWrite(0, HIGH);
+    mcp.digitalWrite(1, HIGH);
+
+    mcp.pinMode(7, OUTPUT);
+    mcp.pinMode(9, OUTPUT);
+
+    mcp.digitalWrite(1, LOW);
+    mcp.digitalWrite(7, LOW);
+    mcp.digitalWrite(9, HIGH);
 
     delay(10);
     //storage->loadState(&state, 0);
-    delay(10);
+    // delay(10);
 
     menuPreviousState = currentMenu->isActive();
     // turn on led
@@ -586,8 +818,10 @@ void setup() {
 }
 
 
-
 void renderTXUI() {
+    mcp.digitalWrite(0, HIGH);
+    mcp.digitalWrite(1, LOW);
+
     tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
     setFrequency();
@@ -595,6 +829,9 @@ void renderTXUI() {
 }
 
 void renderRXUI() {
+    mcp.digitalWrite(0, LOW);
+    mcp.digitalWrite(1, HIGH);
+
     tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
     displaySMeter();
@@ -638,7 +875,6 @@ void loop() {
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
         if (currentMS - loopMS > 10) {
 
-            sMeter.loop();
             freqEncButton->loop();
             modeButton->loop();
             vfoButton->loop();
@@ -654,6 +890,8 @@ void loop() {
             if (lastEncoderPosition > encoderPosition + 2) {
                 if (currentMenu->isActive()) {
                     currentMenu->down();
+                } else if (subMenuScreen != MsgExit) {
+                    encoderCCW();
                 } else if (freqEncButton->isPressed()) {
                     changeFrequencyStep(-1);
                 } else if (state.isRIT) {
@@ -663,8 +901,6 @@ void loop() {
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
-                } else if (subMenuScreen != MsgExit) {
-                    encoderCCW();
                 } else {
                     state.frequency -= state.step;
                     band->loop();
@@ -674,6 +910,8 @@ void loop() {
                 // turning the knob clockwise
                 if (currentMenu->isActive()) {
                     currentMenu->up();
+                } else if (subMenuScreen != MsgExit) {
+                    encoderCW();
                 } else if (freqEncButton->isPressed()) {
                     changeFrequencyStep(1);
                 } else if (state.isRIT) {
@@ -683,8 +921,6 @@ void loop() {
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
-                } else if (subMenuScreen != MsgExit) {
-                    encoderCW();
                 } else {
                     state.frequency += state.step;
                     band->loop();
@@ -703,11 +939,11 @@ void loop() {
             }
 
             if (!currentMenu->isActive()) {
-                yield();
+                yield();/*
                 // A4 = PA3 = ADC3
                 // set  ADC Multiplexer Selection Register
                 ADMUX = (_BV(MUX0) | _BV(MUX1) // select ADC3 input
-                 | _BV(REFS0) | _BV(REFS1)); // pull 2.65 V REF
+                         | _BV(REFS0) | _BV(REFS1)); // pull 2.65 V REF
                 cbi(ADMUX, ADLAR); // turn of left adjust
                 cbi(ADMUX, MUX3); // turn off gain
                 cbi(ADMUX, MUX4); // turn off differential input
@@ -719,16 +955,16 @@ void loop() {
                 cbi(PRR0, PRADC); // enable power reduction ADC
                 sbi(ADCSRA, ADSC); // turn on ADC
                 while (bit_is_set(ADCSRA, ADSC));
-                uint8_t low  = ADCL;
+                uint8_t low = ADCL;
                 uint8_t high = ADCH;
                 cbi(ADCSRA, ADEN);
                 uint16_t voltage = (((high << 8) | low) & 0x03FF) + 1;
-                auto av = (float)voltage / 37.5;
+                auto av = (float) voltage / 37.5;
                 auto str1 = String(av, 2);
                 str1.concat("V");
                 if (subMenuScreen == MsgExit) {
                     display->textxy(50, RIT_Y, &str1, COLOR_DARK_GREEN, ST7735_BLACK);
-                }
+                }*/
             }
 
             loopMS = currentMS;
@@ -736,6 +972,7 @@ void loop() {
             yield();
         }
         if (!currentMenu->isActive() && subMenuScreen == MsgExit) {
+            sMeter.loop();
             pano->loop();
             band->loop();
         }

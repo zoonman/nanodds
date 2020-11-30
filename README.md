@@ -1,6 +1,16 @@
 # nanodds
 DDS for SSB 6.1 transceiver based on Si5351A, ST7735 and ATMega1284p
 
+
+## Current WIP
+
+Memory
+    - Save state
+    - List cells
+    - Load
+    
+    
+
 ## Planned function
 
 Buttons
@@ -99,7 +109,13 @@ Watch demo on Youtube
 * https://github.com/adafruit/Adafruit-ST7735-Library
 * https://github.com/etherkit/Si5351Arduino
 
-Progrmming
+### Programming
+
+0. Build
+
+```
+pio run --target=upload -e Debug
+```
 
 1. Fuses
 
@@ -111,5 +127,16 @@ avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10  -Ulock:w:0x3F:m -Uefuse:w
 2. Actual software
 
 ```bash
-avrdude -p m1284p -c avrispmkII -P usb:16:79 -e -U flash:w:.pioenvs/atmega1284/firmware.elf:e -v -B 10
+avrdude -p m1284p -c avrispmkII -P usb:16:79 -e -U flash:w:.pio/build/Debug/firmware.elf:e -v -B 10
 ```
+
+
+Logic
+    State - active state
+    AppSettings - global rarely updated changes
+
+
+Per http://www.rfcafe.com/references/electrical/spectral-inv.htm
+we have DDS always running above receiving RF signal therefore
+`LO1 frequency = RF + IF` which results in spectral inversion.
+To make sound undistorted we must perform second spectral inversion by setting LO2 at the upper edge of the filter.

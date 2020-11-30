@@ -16,19 +16,20 @@
 
 // http://wiki.microduinoinc.com/Microduino-Module_Core%2B
 #define TX_BTN_PIN          6 // (INT2/AIN0)PB2
-#define MEM_BTN_PIN         16
-#define MODE_BTN_PIN        17
-#define VFO_BTN_PIN         18
-#define STEP_BTN_PIN        26
-#define BAND_BTN_PIN        27
-#define BACKLIGHT_PIN       9
-#define TFT_BACKLIGHT_PIN   7
+#define MEM_BTN_PIN         16 // (TDI)PC5
+#define MODE_BTN_PIN        17 // (TDO)PC4
+#define VFO_BTN_PIN         18 // (TMS)PC3
+#define STEP_BTN_PIN        26 // (ADC5)PA5
+#define BAND_BTN_PIN        27 // (ADC4)PA4
+#define BACKLIGHT_PIN       9  // (OC1A)PD5
+#define TFT_BACKLIGHT_PIN   7  // (OC0A/AIN1)PB3
 
-#define SMETER_INPUT_PIN    31
+#define SMETER_INPUT_PIN    31 // PA0, D31 or A7
+// #define SMETER_INPUT_PIN    31 // PA0, D31 or A7
 #define PANO_INPUT_PIN      29 // PA2, D29 or A5
 
-#define SWR_REF_INPUT_PIN   31
-#define SWR_FOR_INPUT_PIN   31
+#define SWR_REF_INPUT_PIN   31 // PA0, D31 or A7
+#define SWR_FOR_INPUT_PIN   30 // PA1, D30 or A6
 
 // encoder
 #define ENCODER_LEFT_PIN    2
@@ -43,7 +44,7 @@
 // Special flags
 
 #define ENCODER_OPTIMIZE_INTERRUPTS
-#define TWI_FREQ            400000L
+// #define TWI_FREQ            400000L
 
 #define USE_FAST_PINIO
 //#define SPI_DEFAULT_FREQ 4000000

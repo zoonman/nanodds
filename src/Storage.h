@@ -2,11 +2,11 @@
 // Created by Philipp Tkachev on 2019-03-09.
 //
 #include <Wire.h>
-#include "State.h"
 
 #ifndef NANODDS_STORAGE_H
 #define NANODDS_STORAGE_H
 
+#include "State.h"
 // Memory Layout
 // first 1 byte - Layout version
 // 4kb - Settings
