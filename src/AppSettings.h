@@ -12,11 +12,11 @@ struct AppSettings {
      * Intermediate frequency
      * */
     //uint32_t iFrequency = 455000;// max:-5.69dB 7.998928MHz
-    uint32_t iFrequency = 7998500;// max:-5.69dB 7.998928MHz
+    uint32_t iFrequency = 7990000;// max:-5.69dB 7.998928MHz
     /**
      * SSB offset
      */
-    int32_t ssbOffset = 1500;
+    int32_t ssbOffset = 3000;
     /**
      * CW Offset
      */

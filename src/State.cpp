@@ -20,7 +20,7 @@ State StateFromVolatile(State volatile const& o) {
     return r;
 }
 
-State SetVolatileState(State volatile & r, State o) {
+void SetVolatileState(State volatile & r, State o) {
     r.frequency = o.frequency;
     // r.iFrequency = o.iFrequency;
     // r.ssbOffset = o.ssbOffset;

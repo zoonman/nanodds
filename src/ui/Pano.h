@@ -44,7 +44,7 @@ public:
             fStep = 100000 / WATERFALL_COLS;
         }
         yield();
-        cbi(PRR0, PRADC); // enable power reduction ADC
+        // cbi(PRR0, PRADC); // enable power reduction ADC
         ;
         int rv = analogRead(this->pin);
         yield();

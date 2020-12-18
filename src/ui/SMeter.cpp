@@ -1,30 +1,25 @@
 #include "SMeter.h"
 
 void SMeter::loop()  {
-    int d = analogRead(pin);
-    if (pd != d) {
-        pd = d;
+    int d = analogRead(this->pin);
+    if (this->pd != d) {
+        this->pd = d;
         auto str1 = String(pd);
 
-        display->textxy(10, RIT_Y, &str1, COLOR_DARK_GREEN, ST7735_BLACK);
+        display->textxy(10, RIT_Y, &str1, ST7735_ORANGE, ST7735_BLACK);
 
-        if (pd > this->pdMax) {
-            this->pdMax = pd;
+        if (this->pd > this->pdMax) {
+            this->pdMax =this->pd;
         }
-        if (pd < this->pdMin) {
-            this->pdMin = pd;
+        if (this->pd < this->pdMin) {
+            this->pdMin = this->pd;
         }
 
         // n < d < x
         // 1 < ? < 12
 
         auto d = (this->pdMax - this->pdMin) / 12.0;
-        auto l = (pd - this->pdMin) / d;
-
-
-
-
-
+        auto l = (this->pd - this->pdMin) / d;
         auto ld = static_cast<uint8_t>(l);
         this->drawLevel(ld);
         this->isRedrawForced = true;
@@ -35,6 +30,7 @@ void SMeter::loop()  {
 
 void SMeter::setup() {
     // add pin listener
+    pinMode(this->pin, INPUT);
 
     // render scale
     this->draw();

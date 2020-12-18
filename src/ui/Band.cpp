@@ -81,10 +81,10 @@ void Band::loop() {
                 if (state->band != i) {
                     state->band = i;
                     this->isRedrawForced = true;
-                    uint16_t  ps = this->mcp->readGPIOAB();
-                    ps = ps & 0xFF;
-                    ps = ps + (i & 7);
-                    this->mcp->writeGPIOAB(ps);
+                    uint16_t ba = this->mcp->readGPIOAB();
+                    ba = ba & 0xFFu;// keep register A state
+                    ba = ba | (1u << (i + 8u));
+                    this->mcp->writeGPIOAB(ba);
                 }
                 break;
             }

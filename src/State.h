@@ -19,7 +19,7 @@
  * State will be used to save current active state
  */
 struct State {
-    uint32_t frequency = 1200000;
+    uint32_t frequency = 3750000;
 
     /**
      * @deprecated Use settings instead
@@ -71,7 +71,7 @@ struct State {
 };
 
 State StateFromVolatile(State volatile const& o);
-State SetVolatileState(State volatile & r, State o);
+void SetVolatileState(State volatile & r, State o);
 
 struct MemoryStateCell {
     State state;

@@ -2,11 +2,8 @@
 
 #include <Wire.h>
 
-#include <Encoder.h>
 #include <EEPROM.h>
-
 #include <si5351.h>
-#include <wiring_private.h>
 
 #include "ui/SMeter.h"
 #include "ui/Band.h"
@@ -19,6 +16,7 @@
 #include "ui/Spinner.h"
 #include "Adafruit_MCP23017.h"
 
+#include <RotaryEncoder.h>
 #include <CRC32.h>
 
 
@@ -29,7 +27,7 @@ bool menuPreviousState = false;
 //
 Message subMenuScreen = MsgExit;
 //
-Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
+RotaryEncoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
 Si5351 *si5351 = new Si5351();
 
@@ -706,16 +704,15 @@ void setup() {
     setupCalls++;
     // delay(1000);
 
-    pinMode(28, INPUT);
-    analogReference(INTERNAL2V56);
-
     pinMode(BACKLIGHT_PIN, OUTPUT);
-    digitalWrite(BACKLIGHT_PIN, HIGH);
+    digitalWrite(BACKLIGHT_PIN, LOW);
 
     pinMode(TFT_BACKLIGHT_PIN, OUTPUT);
 
     si5351->init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     yield();
+
+    //delay(1000);;
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
@@ -724,41 +721,29 @@ void setup() {
 
     band->setVisibility(true);
 
-    //
-    //
-    //Serial.begin(9600);
-    //Serial.println("TWBR");
-    //Serial.println(TWBR);
-    //Serial.println(TWSR);
-    // TWBR
-    // Wire.
-
-//    Wire.setClock(400000);
-    //Serial.println("--");
-    //Serial.println(TWBR);
-    //Serial.println(TWSR);
     si5351->output_enable(SI5351_CLK0, 1);
     si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA);
-    yield();
+    //yield();
     si5351->output_enable(SI5351_CLK1, 1);
-    yield();
+    //yield();
     si5351->output_enable(SI5351_CLK2, 1);
 
     si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
     si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
-    yield();
-
+    //yield();
+    digitalWrite(BACKLIGHT_PIN, HIGH);
 /**/
     // state.frequency = START_FREQUENCY;
     // state.altFrequency = START_FREQUENCY + 1000;
+    delay(100);
     loadSettings();
     loadStateFromCell(0);
 
     setIntermediateFrequency();
     setFrequency();
 
-    freqEncoder.write(encoderPosition);
-
+    // freqEncoder.setPosition(encoderPosition);
+    digitalWrite(BACKLIGHT_PIN, LOW);
     setFrequency();
 
     render();
@@ -791,12 +776,12 @@ void setup() {
     menuButton->registerShortPressCallback(&menuClick);
     delay(10);
 
-    mcp.begin(0);
+    mcp.begin();
 
     mcp.pinMode(0, OUTPUT);
+    mcp.digitalWrite(0, HIGH);
 
     mcp.pinMode(1, OUTPUT);
-    mcp.digitalWrite(0, HIGH);
     mcp.digitalWrite(1, HIGH);
 
     mcp.pinMode(7, OUTPUT);
@@ -819,8 +804,8 @@ void setup() {
 
 
 void renderTXUI() {
-    mcp.digitalWrite(0, HIGH);
-    mcp.digitalWrite(1, LOW);
+    mcp.digitalWrite(0, LOW);
+    mcp.digitalWrite(1, HIGH);
 
     tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
@@ -829,8 +814,8 @@ void renderTXUI() {
 }
 
 void renderRXUI() {
-    mcp.digitalWrite(0, LOW);
-    mcp.digitalWrite(1, HIGH);
+    mcp.digitalWrite(0, HIGH);
+    mcp.digitalWrite(1, LOW);
 
     tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
     displayMode();
@@ -847,6 +832,7 @@ void renderRXUI() {
 void loop() {
     // return;
     txButton->loop();
+
 
     if (txButton->isPressed() && state.tx == 0) {
         state.tx = true;
@@ -871,6 +857,7 @@ void loop() {
         swrMeter.loop();
     } else {
         auto currentMS = millis();
+        freqEncoder.tick();
 
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
         if (currentMS - loopMS > 10) {
@@ -882,7 +869,7 @@ void loop() {
             menuButton->loop();
             bandButton->loop();
 
-            long int lastEncoderPosition = freqEncoder.read();
+            long int lastEncoderPosition = freqEncoder.getPosition();
             if (lastEncoderPosition != encoderPosition && freqEncButton->isPressed()) {
                 freqEncButton->disable();
             }
