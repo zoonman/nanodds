@@ -1,10 +1,9 @@
-#include "config.h"
 
+#include "config.h"
 #include <Wire.h>
 
 #include <EEPROM.h>
 #include <si5351.h>
-
 #include "ui/SMeter.h"
 #include "ui/Band.h"
 #include "button.h"
@@ -15,10 +14,12 @@
 #include "Storage.h"
 #include "ui/Spinner.h"
 #include "Adafruit_MCP23017.h"
-
-#include <RotaryEncoder.h>
 #include <CRC32.h>
+#include <avr/wdt.h>
 
+
+
+#include <Encoder.h>
 
 volatile long setupCalls = 0;
 volatile long encoderPosition = 0;
@@ -27,7 +28,7 @@ bool menuPreviousState = false;
 //
 Message subMenuScreen = MsgExit;
 //
-RotaryEncoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
+Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
 Si5351 *si5351 = new Si5351();
 
@@ -701,54 +702,80 @@ void encoderCCW() {
  ****************************************************************/
 
 void setup() {
+    //SPISettings.setClockDivider(SPI_CLOCK_DIV16);
     setupCalls++;
-    // delay(1000);
-
+    // turn on buttons backlight
     pinMode(BACKLIGHT_PIN, OUTPUT);
     digitalWrite(BACKLIGHT_PIN, LOW);
-
+    // and turn off led backlight
+    // this will indicate that we booting
     pinMode(TFT_BACKLIGHT_PIN, OUTPUT);
+    digitalWrite(TFT_BACKLIGHT_PIN, LOW);
 
+    // turn on generator
+    // will need some time for init procedure
     si5351->init(SI5351_CRYSTAL_LOAD_0PF, 0, 0);
     yield();
-
-    //delay(1000);;
+    wdt_reset();
+    yield();
+    delay(10);
+    wdt_reset();
+//    SPI.begin();
+//    SPI.setClockDivider(SPI_CLOCK_DIV128);
+    tft.setSPISpeed(125000);
+    // this takes some time so we reset watchdog once in a while
     tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
     tft.fillScreen(ST77XX_BLACK);
     tft.setRotation(1);
 
-    loopMS = millis();
-
-    band->setVisibility(true);
-
+    wdt_reset();
+    yield();
     si5351->output_enable(SI5351_CLK0, 1);
     si5351->drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA);
-    //yield();
     si5351->output_enable(SI5351_CLK1, 1);
-    //yield();
     si5351->output_enable(SI5351_CLK2, 1);
-
     si5351->drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA);
     si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
-    //yield();
-    digitalWrite(BACKLIGHT_PIN, HIGH);
-/**/
-    // state.frequency = START_FREQUENCY;
-    // state.altFrequency = START_FREQUENCY + 1000;
-    delay(100);
+    yield();
+    wdt_reset();
+    tft.fillScreen(ST77XX_BLUE);
+    mcp.begin();
+    yield();
+    wdt_reset();
+    mcp.pinMode(0, OUTPUT);
+    mcp.digitalWrite(0, HIGH);
+
+    mcp.pinMode(1, OUTPUT);
+    mcp.digitalWrite(1, HIGH);
+
+    mcp.pinMode(7, OUTPUT);
+    mcp.pinMode(9, OUTPUT);
+
+    mcp.digitalWrite(1, LOW);
+    mcp.digitalWrite(7, LOW);
+    mcp.digitalWrite(9, HIGH);
+    wdt_reset();
+    yield();
+
+    loopMS = millis();
+    band->setVisibility(true);
     loadSettings();
     loadStateFromCell(0);
 
     setIntermediateFrequency();
     setFrequency();
 
+    wdt_reset();
+
     // freqEncoder.setPosition(encoderPosition);
-    digitalWrite(BACKLIGHT_PIN, LOW);
+    freqEncoder.write(0);
+
     setFrequency();
-
     render();
-    band->loop();
 
+    wdt_reset();
+
+    band->loop();
     txButton->setup();
     freqEncButton->setup();
     modeButton->setup();
@@ -756,6 +783,8 @@ void setup() {
     stepButton->setup();
     menuButton->setup();
     bandButton->setup();
+
+    wdt_reset();
 
     sMeter.setup();
     swrMeter.setup();
@@ -774,32 +803,14 @@ void setup() {
 
 
     menuButton->registerShortPressCallback(&menuClick);
-    delay(10);
-
-    mcp.begin();
-
-    mcp.pinMode(0, OUTPUT);
-    mcp.digitalWrite(0, HIGH);
-
-    mcp.pinMode(1, OUTPUT);
-    mcp.digitalWrite(1, HIGH);
-
-    mcp.pinMode(7, OUTPUT);
-    mcp.pinMode(9, OUTPUT);
-
-    mcp.digitalWrite(1, LOW);
-    mcp.digitalWrite(7, LOW);
-    mcp.digitalWrite(9, HIGH);
-
-    delay(10);
-    //storage->loadState(&state, 0);
-    // delay(10);
 
     menuPreviousState = currentMenu->isActive();
-    // turn on led
-    digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
-
     band->draw();
+
+    // we done with initialization
+    // turn on TFT backlight
+    digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
+    digitalWrite(BACKLIGHT_PIN, HIGH);
 }
 
 
@@ -831,6 +842,8 @@ void renderRXUI() {
 // MAIN LOOP ===================================================================
 void loop() {
     // return;
+
+
     txButton->loop();
 
 
@@ -857,10 +870,8 @@ void loop() {
         swrMeter.loop();
     } else {
         auto currentMS = millis();
-        freqEncoder.tick();
-
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
-        if (currentMS - loopMS > 10) {
+        if (currentMS - loopMS > 1) {
 
             freqEncButton->loop();
             modeButton->loop();
@@ -868,8 +879,10 @@ void loop() {
             stepButton->loop();
             menuButton->loop();
             bandButton->loop();
+            //freqEncoder.tick();
 
-            long int lastEncoderPosition = freqEncoder.getPosition();
+            wdt_reset();
+            long int lastEncoderPosition = freqEncoder.read();
             if (lastEncoderPosition != encoderPosition && freqEncButton->isPressed()) {
                 freqEncButton->disable();
             }
@@ -926,32 +939,7 @@ void loop() {
             }
 
             if (!currentMenu->isActive()) {
-                yield();/*
-                // A4 = PA3 = ADC3
-                // set  ADC Multiplexer Selection Register
-                ADMUX = (_BV(MUX0) | _BV(MUX1) // select ADC3 input
-                         | _BV(REFS0) | _BV(REFS1)); // pull 2.65 V REF
-                cbi(ADMUX, ADLAR); // turn of left adjust
-                cbi(ADMUX, MUX3); // turn off gain
-                cbi(ADMUX, MUX4); // turn off differential input
-
-                cbi(ADCSRA, ADATE);
-                cbi(ADCSRA, ADIE);
-
-                sbi(ADCSRA, ADEN); // enable ADC
-                cbi(PRR0, PRADC); // enable power reduction ADC
-                sbi(ADCSRA, ADSC); // turn on ADC
-                while (bit_is_set(ADCSRA, ADSC));
-                uint8_t low = ADCL;
-                uint8_t high = ADCH;
-                cbi(ADCSRA, ADEN);
-                uint16_t voltage = (((high << 8) | low) & 0x03FF) + 1;
-                auto av = (float) voltage / 37.5;
-                auto str1 = String(av, 2);
-                str1.concat("V");
-                if (subMenuScreen == MsgExit) {
-                    display->textxy(50, RIT_Y, &str1, COLOR_DARK_GREEN, ST7735_BLACK);
-                }*/
+                yield();
             }
 
             loopMS = currentMS;

@@ -12,10 +12,12 @@
 #include "FreeSansBold15pt7b.h"
 #include <avr/io.h>
 #include <avr/pgmspace.h>
+#include <avr/wdt.h>
 
 #include "common.h"
 #include "colors.h"
 #include "menu/Action.h"
+#include <SPI.h>
 
 
 // Init Display
@@ -23,6 +25,7 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 
 void textxy(uint16_t x, uint16_t y, const char *text) {
+
     tft.setCursor(x, y);
     tft.print(text);
 }
@@ -36,6 +39,7 @@ void textxy(uint16_t x, uint16_t y, String text, uint16_t c, uint16_t b) {
     tft.setTextColor(c, b);
     tft.setCursor(x, y);
     tft.print(text);
+    // wdt_reset();
 }
 
 void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *text, uint16_t c, uint16_t bg) {
@@ -110,6 +114,7 @@ void displayFrequency() {
     strcpy(oldFreq, dFreq);
     tft.setFont();
     textxy(0, STEP_Y, F("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
+
 }
 
 

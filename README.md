@@ -120,8 +120,9 @@ pio run --target=upload -e Debug
 1. Fuses
 
 ```bash
-avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10 -e -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDA:m -Ulfuse:w:0xFF:m 
-avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10  -Ulock:w:0x3F:m -Uefuse:w:0xFD:m -Uhfuse:w:0xDA:m -Ulfuse:w:0x7F:m 
+
+avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10 -U lfuse:w:0x8f:m -U hfuse:w:0xd6:m -U efuse:w:0xfd:m
+
 ```
 
 2. Actual software
