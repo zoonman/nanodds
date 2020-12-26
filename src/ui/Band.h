@@ -34,6 +34,9 @@ public:
     void draw() override;
     void loop() override;
     void next();
+    using Widget::scheduleRedraw;
+    using Widget::setVisibility;
+
 };
 
 #endif //NANODDS_BAND_H

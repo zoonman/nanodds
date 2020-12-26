@@ -8,6 +8,12 @@
 #include "Display.h"
 #include "../Task.h"
 
+enum RedrawType {
+    No,
+    Data,
+    Full
+};
+
 class Widget: public Task {
 protected:
     Display *display{};
@@ -16,7 +22,7 @@ protected:
     uint8_t width{0};
     uint8_t height{0};
     boolean isVisible{false};
-    boolean isRedrawForced{false};
+    RedrawType redrawType{No};
     virtual void draw() = 0;
 public:
     void setVisibility(boolean isVisible);
@@ -36,6 +42,8 @@ public:
     uint8_t getHeight() const;
 
     void setHeight(uint8_t height);
+
+    void scheduleRedraw(RedrawType type = Full);
 };
 
 #endif //NANODDS_WIDGET_H

@@ -18,17 +18,17 @@
 #define BAND_BTN_PIN        28 // (ADC4)PA4
 #define BACKLIGHT_PIN       13 //13  // (OC1A)PD5
 #define TFT_BACKLIGHT_PIN   3  // PB3  // (OC0A/AIN1)PB3
-#define SMETER_INPUT_PIN    A0 // 24 // PA0, D31 or A7
+#define SMETER_INPUT_PIN    PIN_PA2 // 24 // PA0, D31 or A7
 #define PANO_INPUT_PIN      A2 //  26 // PA2, D29 or A5
 #define SWR_REF_INPUT_PIN   A0 // PA0, D31 or A7
 #define SWR_FOR_INPUT_PIN   A1 // PA1, D30 or A6
 
-#define ENCODER_LEFT_PIN    10 // PD2
-#define ENCODER_RIGHT_PIN   11 // PD3
+#define ENCODER_LEFT_PIN    PIN_PD2 // 10 // PD2
+#define ENCODER_RIGHT_PIN   PIN_PD3 // 11 // PD3
 #define ENCODER_PUSH_PIN    12 // PD4
 
 #define TFT_CS                4 // PB4 // D10, Chip select pin #44, SS, PB4
-#define TFT_RST               0 // PB0  // D4, Reset pin #40 (optional, pass -1 if unused), PB0
+#define TFT_RST               PIN_PB0 // PB0  // D4, Reset pin #40 (optional, pass -1 if unused), PB0
 #define TFT_DC                1 // PB1  // A0, Data/Command pin #41 (PB1)
 
 

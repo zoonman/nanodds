@@ -121,7 +121,7 @@ pio run --target=upload -e Debug
 
 ```bash
 
-avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10 -U lfuse:w:0x8f:m -U hfuse:w:0xd6:m -U efuse:w:0xfd:m
+avrdude -v -pm1284p  -c avrispmkII -P usb:16:79 -B 10 -U lfuse:w:0xee:m -U hfuse:w:0xd6:m -U efuse:w:0xfd:m
 
 ```
 

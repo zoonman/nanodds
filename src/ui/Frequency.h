@@ -29,6 +29,11 @@ public:
     };
     void draw() override;
     void loop() override;
+    using Widget::scheduleRedraw;
+    using Widget::setVisibility;
+    void drawStep();
+    void drawRIT();
+    void changeFrequencyStep(int8_t offset);
 };
 
 #endif //NANODDS_FREQUENCY_H

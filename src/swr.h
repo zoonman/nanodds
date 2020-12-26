@@ -16,8 +16,8 @@ public:
     }
 
     void render() {
-        tft.drawFastVLine(0, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
-        tft.fillRect(0, SWR_SCALE_Y, TFT_WIDTH-1, 5, tft.color565(20, 20, 20));
+        tft->drawFastVLine(0, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+        tft->fillRect(0, SWR_SCALE_Y, TFT_WIDTH-1, 5, tft->color565(20, 20, 20));
 
         textxy(0, SWR_SCALE_TY, ("SWR"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
         displaySWRTick(15, "1.5");
@@ -25,11 +25,11 @@ public:
         displaySWRTick(30, "3");
         displaySWRTick(50, "5");
         displaySWRTick(100, "10");
-        tft.drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
+        tft->drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
         textxy(TFT_WIDTH - 20, SWR_SCALE_TY, ("inf"));
 
         for (uint8_t x = 0; x < TFT_WIDTH; x++ ) {
-            tft.drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+            tft->drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
         }
     }
 
@@ -69,7 +69,7 @@ public:
                 }
             } else {
                 for (uint8_t x = cSwrX; x > mSwrX; x-=2) {
-                    tft.drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+                    tft->drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
                 }
             }
 
@@ -99,7 +99,7 @@ public:
         } else {
             color = COLOR_BRIGHT_RED;
         }
-        tft.drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, color);
+        tft->drawFastVLine(x & 0xFE, SWR_SCALE_Y, 5, color);
         return color;
     }
 
@@ -113,7 +113,7 @@ public:
             swrx++;
         }
         textxy(swrx - strlen(label) * 5 / 2, SWR_SCALE_TY, label, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
-        tft.drawFastVLine(swrx, SWR_SCALE_Y, 5, ST77XX_WHITE);
+        tft->drawFastVLine(swrx, SWR_SCALE_Y, 5, ST77XX_WHITE);
     }
 private:
     volatile uint8_t pl = 1;

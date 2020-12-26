@@ -16,6 +16,8 @@
 
 class Pano: Widget {
 public:
+
+
     explicit Pano(uint8_t pin, Si5351 *pll, volatile State *state, Display *display) {
         this->pin = pin;
         this->pll = pll;
@@ -115,6 +117,9 @@ public:
 
         return ((red) << 15) | ((green) << 5u) | (blue);
     }
+
+    using Widget::scheduleRedraw;
+    using Widget::setVisibility;
 
 private:
     uint8_t pin;

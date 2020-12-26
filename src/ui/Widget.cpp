@@ -7,8 +7,8 @@
 void Widget::setVisibility(boolean isVisible) {
     if (this->isVisible != isVisible) {
         this->isVisible = isVisible;
-        if (isVisible && !this->isRedrawForced) {
-            this->isRedrawForced = true;
+        if (isVisible && !this->redrawType) {
+            this->redrawType = Full;
         }
     }
 }
@@ -44,3 +44,8 @@ uint8_t Widget::getHeight() const {
 void Widget::setHeight(uint8_t height) {
     Widget::height = height;
 }
+
+
+void Widget::scheduleRedraw(RedrawType type) {
+    this->redrawType = type;
+};

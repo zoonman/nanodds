@@ -42,6 +42,9 @@ public:
         this->isFocused = focused;
     }
 
+    using Widget::scheduleRedraw;
+    using Widget::setVisibility;
+
 
     void draw() override;
     void loop() override;

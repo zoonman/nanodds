@@ -18,13 +18,17 @@ public:
         this->display = display;
     };
     void setup();
+    void drawScale();
     void drawLevelBar(uint8_t l);
     void drawLevel(uint8_t l);
     void draw() final;
     uint16_t level2color(uint8_t l);
     void loop() override;
+    using Widget::scheduleRedraw;
+    using Widget::setVisibility;
 private:
-    volatile uint8_t pl = 1;
+    volatile uint8_t pl = 0;
+    volatile uint8_t nl = 0;
     int pd = 0;
     int pdMin = 512;
     int pdMax = 0;

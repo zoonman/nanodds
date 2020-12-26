@@ -16,10 +16,8 @@
 #include "Adafruit_MCP23017.h"
 #include <CRC32.h>
 #include <avr/wdt.h>
-
-
-
-#include <Encoder.h>
+#include <RotaryEncoder.h>
+#include <ui/Frequency.h>
 
 volatile long setupCalls = 0;
 volatile long encoderPosition = 0;
@@ -27,8 +25,14 @@ volatile unsigned long loopMS;
 bool menuPreviousState = false;
 //
 Message subMenuScreen = MsgExit;
-//
-Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
+
+
+#define ENCODER_DO_NOT_USE_INTERRUPTS
+/// #define INPUT_PULLUP
+// #define USE_FAST_PINIO
+
+// Encoder freqEncoder(ENCODER_LEFT_PIN, ENCODER_RIGHT_PIN); // pin (2 = D2, 3 = D3)
+RotaryEncoder freqEncoder(ENCODER_RIGHT_PIN, ENCODER_LEFT_PIN); // pin (2 = D2, 3 = D3)
 Button *freqEncButton = new Button(ENCODER_PUSH_PIN);
 Si5351 *si5351 = new Si5351();
 
@@ -42,8 +46,10 @@ Button *bandButton = new Button(BAND_BTN_PIN); // PA4
 
 SWRMeter swrMeter(SWR_REF_INPUT_PIN, SWR_FOR_INPUT_PIN);
 
-Display *display = new Display(&tft);
-SMeter sMeter(SMETER_INPUT_PIN, display);
+Display *display = new Display(tft);
+SMeter *sMeter = new SMeter(SMETER_INPUT_PIN, display);
+
+Frequency *frequency = new Frequency(&settings, si5351, &state, display);
 
 Pano *pano = new Pano(PANO_INPUT_PIN, si5351, &state, display);
 Adafruit_MCP23017 mcp;
@@ -118,10 +124,7 @@ void setFrequency() {
         }
     } else {
         // normally we apply RIT offset in RX and transmit on a correct frequency
-        // f = state.frequency + getIntermediateFrequency() + (state.isRIT && !state.tx ? state.RITFrequency : 0);
-         //f = state.frequency + settings.iFrequency - settings.ssbOffset + (state.isRIT && !state.tx ? state.RITFrequency : 0);
-         f = state.frequency + settings.iFrequency + (state.isRIT && !state.tx ? state.RITFrequency : 0);
-        //f = state.frequency;
+        f = state.frequency + settings.iFrequency + (state.isRIT && !state.tx ? state.RITFrequency : 0);
     }
 
     // @todo: add reverse in future
@@ -130,10 +133,6 @@ void setFrequency() {
             SI5351_CLK0
     );
     yield();
-    if (!currentMenu->isActive()) {
-        displayFrequency();
-        band->loop();
-    }
 }
 
 
@@ -163,17 +162,27 @@ void displayVFO() {
 }
 
 
+
+void changeFrequencyStep(int8_t offset) {
+    frequency->changeFrequencyStep(offset);
+    frequency->scheduleRedraw(Full);
+}
+
+
+/***
+ * @deprecated
+
 void render() {
-    tft.fillScreen(ST77XX_BLACK);
+    tft->fillScreen(ST77XX_BLACK);
     displayModulation();
     displayMode();
     band->draw();
     changeFrequencyStep(0);
     displayFrequency();
-    sMeter.setup();
+    sMeter->setup();
     displayRIT();
     displayVFO();
-}
+}*/
 
 /*
 TX - must be separate, external 1k
@@ -193,7 +202,6 @@ void switchBand() {
             // nothing
     }
 }
-
 
 void setIntermediateFrequency() {
     si5351->set_freq(
@@ -305,7 +313,7 @@ void stepButtonShortClickCb() {
             ssbSpinner->loop();
             break;
         default:
-            changeFrequencyStep(1);
+            frequency->changeFrequencyStep(1);
     }
 }
 
@@ -334,7 +342,6 @@ void loadSettings() {
         settings.isPanoEnabled = as.settings.isPanoEnabled;
     }
     display->clear();
-    render();
     setFrequency();
     setIntermediateFrequency();
 }
@@ -370,7 +377,6 @@ void loadStateFromCell(size_t cellId) {
         delay(1000);
     }
     display->clear();
-    render();
 }
 
 void saveStateToACell(size_t cellId) {
@@ -386,7 +392,6 @@ void saveStateToACell(size_t cellId) {
     yield();
     delay(1000);
     display->clear();
-    render();
 }
 
 void displayAbout() {
@@ -468,6 +473,36 @@ void displayAllEeprom() {
     }
 }
 
+
+void renderTXUI() {
+    mcp.digitalWrite(0, LOW);
+    mcp.digitalWrite(1, HIGH);
+
+    tft->fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
+    displayMode();
+    setFrequency();
+    displayModulation();
+    swrMeter.render();
+    sMeter->setVisibility(false);
+    pano->setVisibility(false);
+}
+
+void renderRXUI() {
+    mcp.digitalWrite(0, HIGH);
+    mcp.digitalWrite(1, LOW);
+
+    tft->fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
+    displayMode();
+    displayModulation();
+    displayRIT();
+    displayVFO();
+    setFrequency();
+    displayFrequency();
+    sMeter->setVisibility(true);
+    band->setVisibility(true);
+    frequency->setVisibility(true);
+}
+
 void eraseEeprom() {
     display->clear();
     display->drawRoundTextBox(0, 0, TFT_WIDTH, TFT_HEIGHT, MsgErasing, ST7735_WHITE, ST7735_BLACK);
@@ -475,7 +510,7 @@ void eraseEeprom() {
         EEPROM.write(i, 255);
     }
     display->clear();
-    render();
+    renderRXUI();
 }
 
 void displayIntermediateFrequencySettings() {
@@ -529,6 +564,7 @@ private:
         }
     }
 };
+
 
 
 void callMenuFunc(Message m) {
@@ -590,10 +626,14 @@ void callMenuFunc(Message m) {
                 currentMenu = &mainMenu;
             }
             display->clear();
-            render();
+            renderRXUI();
             break;
         default:;
     }
+}
+
+void encoderTick() {
+    freqEncoder.tick();
 }
 
 void encoderClickHandler() {
@@ -609,6 +649,7 @@ void encoderClickHandler() {
             case MsgSaveToNewCell:
                 saveStateToACell(memoryCellIndex);
                 subMenuScreen = MsgExit;
+                renderRXUI();
                 break;
             case MsgIF:
                 settings.iFrequency = ifSpinner->getValue();
@@ -616,6 +657,7 @@ void encoderClickHandler() {
                 saveSettings();
                 saveStateToACell(0);
                 subMenuScreen = MsgExit;
+                renderRXUI();
                 break;
             case MsgSSBOffset:
                 settings.ssbOffset = ssbSpinner->getValue();
@@ -626,8 +668,8 @@ void encoderClickHandler() {
                 break;
             case MsgAbout:
                 display->clear();
-                render();
                 subMenuScreen = MsgExit;
+                renderRXUI();
                 break;
             default:;
         }
@@ -694,6 +736,8 @@ void encoderCCW() {
     }
 }
 
+
+
 /****************************************************************
  *
  *   SETUP
@@ -702,7 +746,11 @@ void encoderCCW() {
  ****************************************************************/
 
 void setup() {
-    //SPISettings.setClockDivider(SPI_CLOCK_DIV16);
+    tft->initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+    // tft->setSPISpeed(1000000);
+    tft->fillScreen(ST77XX_BLACK);
+    tft->setRotation(1);
+    ///
     setupCalls++;
     // turn on buttons backlight
     pinMode(BACKLIGHT_PIN, OUTPUT);
@@ -720,13 +768,10 @@ void setup() {
     yield();
     delay(10);
     wdt_reset();
-//    SPI.begin();
-//    SPI.setClockDivider(SPI_CLOCK_DIV128);
-    tft.setSPISpeed(125000);
+
+
+
     // this takes some time so we reset watchdog once in a while
-    tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setRotation(1);
 
     wdt_reset();
     yield();
@@ -738,7 +783,7 @@ void setup() {
     si5351->drive_strength(SI5351_CLK2, SI5351_DRIVE_2MA);
     yield();
     wdt_reset();
-    tft.fillScreen(ST77XX_BLUE);
+    // tft->fillScreen(ST77XX_BLUE);
     mcp.begin();
     yield();
     wdt_reset();
@@ -767,11 +812,10 @@ void setup() {
 
     wdt_reset();
 
-    // freqEncoder.setPosition(encoderPosition);
-    freqEncoder.write(0);
+    analogReference(INTERNAL1V1);
 
     setFrequency();
-    render();
+    // render();
 
     wdt_reset();
 
@@ -786,7 +830,7 @@ void setup() {
 
     wdt_reset();
 
-    sMeter.setup();
+    sMeter->setup();
     swrMeter.setup();
 
     freqEncButton->registerShortPressCallback(&encoderClickHandler);
@@ -805,38 +849,27 @@ void setup() {
     menuButton->registerShortPressCallback(&menuClick);
 
     menuPreviousState = currentMenu->isActive();
-    band->draw();
+    // band->draw();
 
     // we done with initialization
     // turn on TFT backlight
     digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
     digitalWrite(BACKLIGHT_PIN, HIGH);
+
+    pinMode(ENCODER_LEFT_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_RIGHT_PIN, INPUT_PULLUP);
+    attachInterrupt(
+            digitalPinToInterrupt(ENCODER_LEFT_PIN),
+            encoderTick,
+            CHANGE
+    );
+    attachInterrupt(
+            digitalPinToInterrupt(ENCODER_RIGHT_PIN), encoderTick, CHANGE);
+
+    renderRXUI();
 }
 
 
-void renderTXUI() {
-    mcp.digitalWrite(0, LOW);
-    mcp.digitalWrite(1, HIGH);
-
-    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
-    displayMode();
-    setFrequency();
-    swrMeter.render();
-}
-
-void renderRXUI() {
-    mcp.digitalWrite(0, HIGH);
-    mcp.digitalWrite(1, LOW);
-
-    tft.fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
-    displayMode();
-    displaySMeter();
-    setFrequency();
-    // displayScale(true);
-    sMeter.drawLevel(1);
-    sMeter.drawLevel(12);
-    band->loop();
-}
 
 
 // MAIN LOOP ===================================================================
@@ -871,7 +904,7 @@ void loop() {
     } else {
         auto currentMS = millis();
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
-        if (currentMS - loopMS > 1) {
+        if (currentMS - loopMS > 0) {
 
             freqEncButton->loop();
             modeButton->loop();
@@ -879,53 +912,66 @@ void loop() {
             stepButton->loop();
             menuButton->loop();
             bandButton->loop();
-            //freqEncoder.tick();
+            freqEncoder.tick();
 
-            wdt_reset();
-            long int lastEncoderPosition = freqEncoder.read();
-            if (lastEncoderPosition != encoderPosition && freqEncButton->isPressed()) {
+            int32_t lastestEncoderPosition = freqEncoder.getPosition();
+            if (lastestEncoderPosition != encoderPosition && freqEncButton->isPressed()) {
                 freqEncButton->disable();
             }
+            auto delta = lastestEncoderPosition - encoderPosition;
+            if (delta != 0) {
+                unsigned long deltaT = freqEncoder.getMillisBetweenRotations();
+                if (deltaT > 1) {
+                    if (deltaT > 500) {
+                        deltaT = 500;
+                    }
+                } else {
+                    deltaT = 2;
+                }
+                float deltaf = delta * (6.2 / log(deltaT));
+                delta = long(deltaf);
+            }
+
             // turning the knob counter-clockwise
-            if (lastEncoderPosition > encoderPosition + 2) {
+            if (lastestEncoderPosition > encoderPosition) {
                 if (currentMenu->isActive()) {
                     currentMenu->down();
                 } else if (subMenuScreen != MsgExit) {
                     encoderCCW();
                 } else if (freqEncButton->isPressed()) {
-                    changeFrequencyStep(-1);
+                    frequency->changeFrequencyStep(-1);
                 } else if (state.isRIT) {
                     if (state.RITFrequency > -9999) {
-                        state.RITFrequency--;
+                        state.RITFrequency += delta;
                     }
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
                 } else {
-                    state.frequency -= state.step;
+                    state.frequency += state.step * delta;
                     band->loop();
                 }
-                encoderPosition = lastEncoderPosition;
-            } else if (lastEncoderPosition < encoderPosition - 2) {
+                encoderPosition = lastestEncoderPosition;
+            } else if (lastestEncoderPosition < encoderPosition) {
                 // turning the knob clockwise
                 if (currentMenu->isActive()) {
                     currentMenu->up();
                 } else if (subMenuScreen != MsgExit) {
                     encoderCW();
                 } else if (freqEncButton->isPressed()) {
-                    changeFrequencyStep(1);
+                    frequency->changeFrequencyStep(1);
                 } else if (state.isRIT) {
                     if (state.RITFrequency < 9999) {
-                        state.RITFrequency++;
+                        state.RITFrequency += delta;
                     }
                     if (!currentMenu->isActive()) {
                         displayRIT();
                     }
                 } else {
-                    state.frequency += state.step;
+                    state.frequency += state.step * delta;
                     band->loop();
                 }
-                encoderPosition = lastEncoderPosition;
+                encoderPosition = lastestEncoderPosition;
             }
 
             if (state.frequency > UPPER_RX_BOUND) {
@@ -936,10 +982,12 @@ void loop() {
 
             if (oFrequency != state.frequency) {
                 setFrequency();
+                displayFrequency();
             }
 
             if (!currentMenu->isActive()) {
                 yield();
+                band->loop();
             }
 
             loopMS = currentMS;
@@ -947,9 +995,10 @@ void loop() {
             yield();
         }
         if (!currentMenu->isActive() && subMenuScreen == MsgExit) {
-            sMeter.loop();
+            sMeter->loop();
             pano->loop();
             band->loop();
+            frequency->loop();
         }
         yield();
     }

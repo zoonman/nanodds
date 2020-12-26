@@ -8,7 +8,7 @@ void Band::draw() {
     if (!this->isVisible) {
         return;
     }
-    this->isRedrawForced = false;
+    this->redrawType = No;
 
     if (state->band == BANDS) {
         this->display->drawRoundTextBox(
@@ -80,7 +80,7 @@ void Band::loop() {
                 this->state->frequency / 1000 <= BandsBounds[i].start + BandsBounds[i].width) {
                 if (state->band != i) {
                     state->band = i;
-                    this->isRedrawForced = true;
+                    this->redrawType = Full;
                     uint16_t ba = this->mcp->readGPIOAB();
                     ba = ba & 0xFFu;// keep register A state
                     ba = ba | (1u << (i + 8u));
@@ -91,7 +91,7 @@ void Band::loop() {
         }
         if (i == total && state->band != i) {
             state->band = i;
-            this->isRedrawForced = true;
+            this->redrawType = Full;
         }
         this->frequency = this->state->frequency;
 
@@ -99,7 +99,7 @@ void Band::loop() {
         this->displayScale(false);
     }
 
-    if (this->isRedrawForced) {
+    if (this->redrawType != No) {
         this->draw();
     }
 }
@@ -114,7 +114,7 @@ void Band::next() {
     this->state->frequency =
             (static_cast<uint32_t>(BandsBounds[newBand].start + (BandsBounds[newBand].width / 2))) * 1000;
     this->state->band = newBand;
-    this->isRedrawForced = true;
+    this->redrawType = Full;
 }
 
 // idea! smart band mode:

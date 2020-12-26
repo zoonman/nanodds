@@ -21,32 +21,32 @@
 
 
 // Init Display
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ST7735 *tft = new Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 
 void textxy(uint16_t x, uint16_t y, const char *text) {
 
-    tft.setCursor(x, y);
-    tft.print(text);
+    tft->setCursor(x, y);
+    tft->print(text);
 }
 
 void textxy(uint16_t x, uint16_t y, const char *text, uint16_t c, uint16_t b) {
-    tft.setTextColor(c, b);
+    tft->setTextColor(c, b);
     textxy(x, y, text);
 }
 
 void textxy(uint16_t x, uint16_t y, String text, uint16_t c, uint16_t b) {
-    tft.setTextColor(c, b);
-    tft.setCursor(x, y);
-    tft.print(text);
+    tft->setTextColor(c, b);
+    tft->setCursor(x, y);
+    tft->print(text);
     // wdt_reset();
 }
 
 void drawRoundTextBox(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const char *text, uint16_t c, uint16_t bg) {
-    tft.fillRoundRect(x, y, w, h, 2, bg);
-    tft.drawRoundRect(x, y, w, h, 2, c);
+    tft->fillRoundRect(x, y, w, h, 2, bg);
+    tft->drawRoundRect(x, y, w, h, 2, c);
     Bounds t = {};
-    tft.getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
+    tft->getTextBounds(text, x, y, &t.x, &t.y, &t.w, &t.h);
     textxy(x + (w - t.w)/2, y + (h - t.h) / 2 + 1, text, c, bg);
 }
 
@@ -82,8 +82,8 @@ void displayFrequency() {
             dFreq[i] = FREQUENCY_FAKE_SPACE;
         }
     }
-    tft.setTextSize(1);
-    tft.setFont(&FreeSansBold15pt7b);
+    tft->setTextSize(1);
+    tft->setFont(&FreeSansBold15pt7b);
 
     int16_t xof = FREQUENCY_X + (state.frequency < 1E+7 ? 10 : 0);
     for (int8_t i = 0; i < STR_BUFFER_SIZE-1; i++) {
@@ -93,11 +93,11 @@ void displayFrequency() {
             if (osl != nsl) {
                 // we have a shift
                 Bounds t = {};
-                tft.getTextBounds(oldFreq, FREQUENCY_X, FREQUENCY_Y, &t.x, &t.y, &t.w, &t.h);
-                tft.fillRect(t.x, t.y, t.w, t.h, ST77XX_BLACK);
+                tft->getTextBounds(oldFreq, FREQUENCY_X, FREQUENCY_Y, &t.x, &t.y, &t.w, &t.h);
+                tft->fillRect(t.x, t.y, t.w, t.h, ST77XX_BLACK);
                 break;
             } else {
-                tft.fillRect(xof, FREQUENCY_Y-21, osl, 22, ST77XX_BLACK);
+                tft->fillRect(xof, FREQUENCY_Y-21, osl, 22, ST77XX_BLACK);
             }
         }
         xof += osl ;
@@ -112,7 +112,7 @@ void displayFrequency() {
             );
 
     strcpy(oldFreq, dFreq);
-    tft.setFont();
+    tft->setFont();
     textxy(0, STEP_Y, F("Frequency:"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
 
 }
@@ -123,7 +123,6 @@ void displayFrequency() {
 void displayMode() {
     if (state.tx) {
         drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, ("TX"), ST77XX_WHITE, COLOR_MEDIUM_RED);
-
     } else {
         drawRoundTextBox(0, 0, TFT_QUOTER_WIDTH, 15, ("RX"), COLOR_BRIGHT_GREEN, COLOR_DARK_GREEN);
     }
@@ -141,20 +140,6 @@ void displayModulation() {
 }
 
 
-void changeFrequencyStep(int8_t offset) {
-    if (offset < 0 && state.step > 1) {
-        state.step /= 10;
-    } else if (offset > 0) {
-        state.step = state.step < 1E+6 ? state.step * 10 : 1;
-    }
-
-    textxy(80, STEP_Y, ("Step: "), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
-    ultoa(state.step, b, 10);
-    tft.fillRect(110, STEP_Y, 50, 12, ST77XX_BLACK);
-    textxy(110, STEP_Y, b, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
-    tft.fillRect(0, TFT_HEIGHT / 2 + 3, TFT_WIDTH, 2, ST77XX_BLACK);
-}
-
 void displayWPM() {
     if (state.mode == CW) {
         char s[STR_BUFFER_SIZE] = "\0";
@@ -164,6 +149,9 @@ void displayWPM() {
     }
 }
 
+/***
+ * @deprecated use Frequency
+ */
 void displayRIT() {
     char s[STR_BUFFER_SIZE] = "\0";
     if (state.isRIT) {
@@ -193,7 +181,7 @@ void displaySWRTick(uint8_t value, const char label[]) {
         swrx++;
     }
     textxy(swrx - strlen(label) * 5 / 2, SWR_SCALE_TY, label, COLOR_GRAY_MEDIUM, ST77XX_BLACK);
-    tft.drawFastVLine(swrx, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
+    tft->drawFastVLine(swrx, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
 }
 
 void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
@@ -214,47 +202,5 @@ void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
     }
     while (bf >= 0) buf[bf--] = ' ';
 }
-
-
-    /**
-#define DELTA 1
-void displaySWR() {
-    // 1..1.5..2..3...inf
-    uint8_t swr = (uint8_t)(analogRead(A1) / 4); // 10 = 1, 15 = 1.5, 20 = 2, etc, max is 255, 1024
-     * SWR is calculated as ratio REFLECTED/DIRECT POWER
-    swr = swr > 10 ? swr : (uint8_t)10;
-
-    if (swr > state.swr + DELTA || swr < state.swr - DELTA) {
-        state.swr = swr;
-        tft.drawFastVLine(0, SWR_SCALE_Y, 5, COLOR_GRAY_MEDIUM);
-        tft.fillRect(0, SWR_SCALE_Y, TFT_WIDTH-1, 5, tft.color565(20, 20, 20));
-
-        uint8_t swrX = convertSWR(state.swr);
-        uint16_t color = COLOR_BRIGHT_GREEN;
-        for (uint8_t x = 0; x < min(swrX, TFT_WIDTH); x+=2) {
-            if (x < convertSWR(15)) {
-                color = COLOR_BRIGHT_GREEN;
-            } else if (x < convertSWR(30)) {
-                color = ST77XX_YELLOW;
-            } else {
-                color = COLOR_BRIGHT_RED;
-            }
-            tft.drawFastVLine(x, SWR_SCALE_Y, 5, color);
-        }
-        textxy(0, SWR_SCALE_TY, ("SWR"), COLOR_GRAY_MEDIUM, ST77XX_BLACK);
-        char swrb[8] = "\0";
-        // utoa(state.swr, b, 10);
-        intToStrFP(swrb, state.swr, 1, 5);
-        textxy(20, SWR_SCALE_TY, swrb, color, ST77XX_BLACK);
-        displaySWRTick(15, "1.5");
-        displaySWRTick(20, "2");
-        displaySWRTick(30, "3");
-        displaySWRTick(50, "5");
-        displaySWRTick(100, "10");
-        tft.drawFastVLine(0, SWR_SCALE_Y, 6, COLOR_GRAY_MEDIUM);
-        textxy(TFT_WIDTH - 20, SWR_SCALE_TY, ("inf"));
-    }
-}
-     */
 
 #endif //NANODDS_SCREEN_H
