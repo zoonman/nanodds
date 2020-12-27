@@ -4,6 +4,26 @@
 
 #include "screen.h"
 
+void intToStrFP(char *buf, uint8_t n, uint8_t fp, uint8_t length) {
+    char s[5] = "\0";
+    utoa(n, s, 10);
+    auto l = strlen(s);
+    auto bf = length - 2;
+    buf[length - 1] = '\0';
+    while (l > 0) {
+        if (fp > 0 && length - 2 - bf == fp) {
+            buf[bf--] = '.';
+            continue;
+        }
+        l--;
+        buf[bf] = s[l];
+        bf--;
+
+    }
+    while (bf >= 0) buf[bf--] = ' ';
+}
+
+
 class SWRMeter {
 public:
     explicit SWRMeter(uint8_t pinReflected, uint8_t pinForward) {

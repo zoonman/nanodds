@@ -111,31 +111,6 @@ int64_t getIntermediateFrequency() {
     return settings.iFrequency + fOffset;
 }
 
-void setFrequency() {
-    oFrequency = state.frequency;
-    uint64_t f = 0;
-
-    // in a split mode we receive on one frequency and transmit on alternative frequency
-    if (VFO_SPLIT == state.vfo) {
-        if (state.tx) {
-            f = state.altFrequency + getIntermediateFrequency();
-        } else {
-            f = state.frequency + getIntermediateFrequency() + (state.isRIT ? state.RITFrequency : 0);
-        }
-    } else {
-        // normally we apply RIT offset in RX and transmit on a correct frequency
-        f = state.frequency + settings.iFrequency + (state.isRIT && !state.tx ? state.RITFrequency : 0);
-    }
-
-    // @todo: add reverse in future
-    si5351->set_freq(
-            static_cast<uint64_t>(f) * 100ULL,
-            SI5351_CLK0
-    );
-    yield();
-}
-
-
 void displayVFO() {
     Message m = MsgVFOA;
     switch (state.vfo) {
@@ -157,32 +132,8 @@ void displayVFO() {
         m,
         COLOR_GRAY_MEDIUM,
         COLOR_DARK_GREEN
-
     );
 }
-
-
-
-void changeFrequencyStep(int8_t offset) {
-    frequency->changeFrequencyStep(offset);
-    frequency->scheduleRedraw(Full);
-}
-
-
-/***
- * @deprecated
-
-void render() {
-    tft->fillScreen(ST77XX_BLACK);
-    displayModulation();
-    displayMode();
-    band->draw();
-    changeFrequencyStep(0);
-    displayFrequency();
-    sMeter->setup();
-    displayRIT();
-    displayVFO();
-}*/
 
 /*
 TX - must be separate, external 1k
@@ -191,7 +142,6 @@ MODE
 RIT
 
 */
-unsigned long bs;
 
 void switchBand() {
     switch (subMenuScreen) {
@@ -201,14 +151,6 @@ void switchBand() {
         default:;
             // nothing
     }
-}
-
-void setIntermediateFrequency() {
-    si5351->set_freq(
-            static_cast<uint64_t>(getIntermediateFrequency()) * 100ULL,
-            SI5351_CLK1
-    );
-    yield();
 }
 
 void switchBacklight() {
@@ -263,9 +205,7 @@ void switchModulation() {
                     break;
             }
             displayModulation();
-            setIntermediateFrequency();
-
-            setFrequency();
+            frequency->updatePllFrequency();
             break;
         default:;
     }
@@ -296,8 +236,7 @@ void switchVFO() {
     }
 
     displayVFO();
-    setFrequency();
-    setIntermediateFrequency();
+    frequency->updatePllFrequency();
 }
 
 
@@ -342,8 +281,7 @@ void loadSettings() {
         settings.isPanoEnabled = as.settings.isPanoEnabled;
     }
     display->clear();
-    setFrequency();
-    setIntermediateFrequency();
+    frequency->updatePllFrequency();
 }
 
 void saveSettings() {
@@ -374,7 +312,7 @@ void loadStateFromCell(size_t cellId) {
         display->textxy(20, 90, MsgOK, ST7735_GREEN, ST7735_BLACK);
     } else {
         display->textxy(20, 90, MsgInvalidCRC, ST7735_RED, ST7735_BLACK);
-        delay(1000);
+        delay(100);
     }
     display->clear();
 }
@@ -390,7 +328,7 @@ void saveStateToACell(size_t cellId) {
     );
     EEPROM.put(cellId * sizeof(mc) + sizeof(MemorySettingsCell), mc);
     yield();
-    delay(1000);
+    delay(100);
     display->clear();
 }
 
@@ -478,9 +416,16 @@ void renderTXUI() {
     mcp.digitalWrite(0, LOW);
     mcp.digitalWrite(1, HIGH);
 
-    tft->fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
+    display->clear();
+
     displayMode();
-    setFrequency();
+    displayModulation();
+    displayVFO();
+
+    frequency->updatePllFrequency();
+    frequency->setVisibility(true);
+    frequency->scheduleRedraw(Full);
+
     displayModulation();
     swrMeter.render();
     sMeter->setVisibility(false);
@@ -491,21 +436,28 @@ void renderRXUI() {
     mcp.digitalWrite(0, HIGH);
     mcp.digitalWrite(1, LOW);
 
-    tft->fillRect(0, FREQUENCY_Y, TFT_WIDTH, TFT_HEIGHT - FREQUENCY_Y, ST77XX_BLACK);
+    display->clear();
+
     displayMode();
     displayModulation();
-    displayRIT();
     displayVFO();
-    setFrequency();
-    displayFrequency();
+
+    pano->setVisibility(state.isPanoEnabled);
+
     sMeter->setVisibility(true);
+    sMeter->scheduleRedraw(Full);
+
     band->setVisibility(true);
+    band->scheduleRedraw(Full);
+
+    frequency->updatePllFrequency();
     frequency->setVisibility(true);
+    frequency->scheduleRedraw(Full);
 }
 
 void eraseEeprom() {
     display->clear();
-    display->drawRoundTextBox(0, 0, TFT_WIDTH, TFT_HEIGHT, MsgErasing, ST7735_WHITE, ST7735_BLACK);
+    display->drawRoundTextBox(0, 0, TFT_WIDTH, TFT_HEIGHT, MsgErasing, ST7735_WHITE, ST7735_RED);
     for (int i = 0; i < EEPROM.length(); i++) {
         EEPROM.write(i, 255);
     }
@@ -645,6 +597,7 @@ void encoderClickHandler() {
             case MsgLoadFromTheCell:
                 loadStateFromCell(memoryCellIndex);
                 subMenuScreen = MsgExit;
+                renderRXUI();
                 break;
             case MsgSaveToNewCell:
                 saveStateToACell(memoryCellIndex);
@@ -675,8 +628,8 @@ void encoderClickHandler() {
         }
     } else {
         state.isRIT = !state.isRIT;
-        displayRIT();
-        setFrequency();
+        frequency->updatePllFrequency();
+        frequency->scheduleRedraw(Full);
     }
 }
 
@@ -693,15 +646,13 @@ void encoderCW() {
             ifSpinner->inc();
             ifSpinner->loop();
             settings.iFrequency = ifSpinner->getValue();
-            setIntermediateFrequency();
-            setFrequency();
+            frequency->updatePllFrequency();
             break;
         case MsgSSBOffset:
             ssbSpinner->inc();
             ssbSpinner->loop();
             settings.ssbOffset = ssbSpinner->getValue();
-            setIntermediateFrequency();
-            setFrequency();
+            frequency->updatePllFrequency();
             break;
         default:;
     }
@@ -721,16 +672,13 @@ void encoderCCW() {
             ifSpinner->dec();
             ifSpinner->loop();
             settings.iFrequency = ifSpinner->getValue();
-            setIntermediateFrequency();
-            setFrequency();
+            frequency->updatePllFrequency();
             break;
         case MsgSSBOffset:
             ssbSpinner->dec();
             ssbSpinner->loop();
             settings.ssbOffset = ssbSpinner->getValue();
-            setIntermediateFrequency();
-            setFrequency();
-
+            frequency->updatePllFrequency();
             break;
         default:;
     }
@@ -747,7 +695,6 @@ void encoderCCW() {
 
 void setup() {
     tft->initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-    // tft->setSPISpeed(1000000);
     tft->fillScreen(ST77XX_BLACK);
     tft->setRotation(1);
     ///
@@ -807,14 +754,12 @@ void setup() {
     loadSettings();
     loadStateFromCell(0);
 
-    setIntermediateFrequency();
-    setFrequency();
+    frequency->updatePllFrequency();
 
     wdt_reset();
 
     analogReference(INTERNAL1V1);
 
-    setFrequency();
     // render();
 
     wdt_reset();
@@ -901,6 +846,8 @@ void loop() {
 
     if (state.tx) {
         swrMeter.loop();
+        frequency->loop();
+
     } else {
         auto currentMS = millis();
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
@@ -943,13 +890,15 @@ void loop() {
                 } else if (state.isRIT) {
                     if (state.RITFrequency > -9999) {
                         state.RITFrequency += delta;
+                        frequency->updatePllFrequency();
                     }
                     if (!currentMenu->isActive()) {
-                        displayRIT();
+                        frequency->scheduleRedraw(Data);
                     }
                 } else {
                     state.frequency += state.step * delta;
                     band->loop();
+                    frequency->loop();
                 }
                 encoderPosition = lastestEncoderPosition;
             } else if (lastestEncoderPosition < encoderPosition) {
@@ -963,13 +912,15 @@ void loop() {
                 } else if (state.isRIT) {
                     if (state.RITFrequency < 9999) {
                         state.RITFrequency += delta;
+                        frequency->updatePllFrequency();
                     }
                     if (!currentMenu->isActive()) {
-                        displayRIT();
+                        frequency->scheduleRedraw(Data);
                     }
                 } else {
                     state.frequency += state.step * delta;
                     band->loop();
+                    frequency->loop();
                 }
                 encoderPosition = lastestEncoderPosition;
             }
@@ -978,11 +929,6 @@ void loop() {
                 state.frequency = LOWER_RX_BOUND;
             } else if (state.frequency < LOWER_RX_BOUND) {
                 state.frequency = UPPER_RX_BOUND;
-            }
-
-            if (oFrequency != state.frequency) {
-                setFrequency();
-                displayFrequency();
             }
 
             if (!currentMenu->isActive()) {

@@ -5,7 +5,7 @@
 #define NANODDS_CONFIG_H
 
 // Frequencies
-
+#define STR_BUFFER_SIZE       12
 #define UPPER_RX_BOUND      30000000
 #define LOWER_RX_BOUND      500000
 

@@ -36,6 +36,7 @@ void SMeter::draw() {
     }
     switch(this->redrawType) {
         case Full:
+            this->pl = 0;
             this->drawScale();
         case Data:
             this->drawLevel(this->nl);
@@ -92,7 +93,7 @@ void SMeter::drawLevelBar(uint8_t l) {
 }
 
 void SMeter::drawLevel(uint8_t l) {
-    if (l == pl) return;
+    if (l == this->pl) return;
     if (l > 12) l = 12;
     if (l < 1) l = 1;
     uint8_t i;
