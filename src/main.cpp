@@ -26,7 +26,6 @@ bool menuPreviousState = false;
 //
 Message subMenuScreen = MsgExit;
 
-
 #define ENCODER_DO_NOT_USE_INTERRUPTS
 /// #define INPUT_PULLUP
 // #define USE_FAST_PINIO
@@ -125,13 +124,13 @@ void displayVFO() {
             break;
     }
     display->drawRoundTextBox(
-        TFT_QUOTER_WIDTH + 1u,
-        0,
-        TFT_QUOTER_WIDTH - 2u,
-        15,
-        m,
-        COLOR_GRAY_MEDIUM,
-        COLOR_DARK_GREEN
+            TFT_QUOTER_WIDTH + 1u,
+            0,
+            TFT_QUOTER_WIDTH - 2u,
+            15,
+            m,
+            COLOR_GRAY_MEDIUM,
+            COLOR_DARK_GREEN
     );
 }
 
@@ -225,7 +224,7 @@ void switchVFO() {
         case VFO_A:
             state.vfo = VFO_B;
             cycleAltFrequency();
-        break;
+            break;
         case VFO_B:
             state.vfo = VFO_SPLIT;
             cycleAltFrequency();
@@ -238,7 +237,6 @@ void switchVFO() {
     displayVFO();
     frequency->updatePllFrequency();
 }
-
 
 
 void stepButtonShortClickCb() {
@@ -518,7 +516,6 @@ private:
 };
 
 
-
 void callMenuFunc(Message m) {
     switch (m) {
         case MsgAbout:
@@ -685,7 +682,6 @@ void encoderCCW() {
 }
 
 
-
 /****************************************************************
  *
  *   SETUP
@@ -733,19 +729,21 @@ void setup() {
     // tft->fillScreen(ST77XX_BLUE);
     mcp.begin();
     yield();
-    wdt_reset();
-    mcp.pinMode(0, OUTPUT);
-    mcp.digitalWrite(0, HIGH);
-
-    mcp.pinMode(1, OUTPUT);
-    mcp.digitalWrite(1, HIGH);
-
-    mcp.pinMode(7, OUTPUT);
-    mcp.pinMode(9, OUTPUT);
-
-    mcp.digitalWrite(1, LOW);
-    mcp.digitalWrite(7, LOW);
-    mcp.digitalWrite(9, HIGH);
+    for (int p = 0; p < 16;p++) {
+        wdt_reset();
+        mcp.pinMode(p, OUTPUT);
+    }
+    yield();
+    mcp.writeGPIOAB(0x301); // GPA0=1, GPB1=1
+//    mcp.digitalWrite(0, HIGH);
+//    mcp.digitalWrite(1, HIGH);
+//
+//    mcp.pinMode(7, OUTPUT);
+//    mcp.pinMode(9, OUTPUT);
+//
+//    mcp.digitalWrite(1, LOW);
+//    mcp.digitalWrite(7, LOW);
+//    mcp.digitalWrite(9, HIGH);
     wdt_reset();
     yield();
 
@@ -794,27 +792,25 @@ void setup() {
     menuButton->registerShortPressCallback(&menuClick);
 
     menuPreviousState = currentMenu->isActive();
-    // band->draw();
 
     // we done with initialization
     // turn on TFT backlight
     digitalWrite(TFT_BACKLIGHT_PIN, HIGH);
     digitalWrite(BACKLIGHT_PIN, HIGH);
 
-    pinMode(ENCODER_LEFT_PIN, INPUT_PULLUP);
-    pinMode(ENCODER_RIGHT_PIN, INPUT_PULLUP);
     attachInterrupt(
             digitalPinToInterrupt(ENCODER_LEFT_PIN),
             encoderTick,
             CHANGE
     );
     attachInterrupt(
-            digitalPinToInterrupt(ENCODER_RIGHT_PIN), encoderTick, CHANGE);
+            digitalPinToInterrupt(ENCODER_RIGHT_PIN),
+            encoderTick,
+            CHANGE
+    );
 
     renderRXUI();
 }
-
-
 
 
 // MAIN LOOP ===================================================================
@@ -823,7 +819,6 @@ void loop() {
 
 
     txButton->loop();
-
 
     if (txButton->isPressed() && state.tx == 0) {
         state.tx = true;
@@ -847,8 +842,10 @@ void loop() {
     if (state.tx) {
         swrMeter.loop();
         frequency->loop();
+    } // else
 
-    } else {
+    {
+
         auto currentMS = millis();
         // save cycles, we don't have to evaluate all that stuff with 16MHz frequency
         if (currentMS - loopMS > 0) {

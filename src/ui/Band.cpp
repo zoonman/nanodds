@@ -68,6 +68,20 @@ void Band::displayScale(bool redraw) {
     }
 }
 
+void Band::activate() {
+    uint16_t ba = this->mcp->readGPIOAB();
+    ba = ba & 0x00FFu;// keep register A state
+
+    // if we out of normal bands, we open all filters
+    if (state->band == BANDS) {
+        ba = ba | 0xFF00;
+    } else {
+        ba = ba | (1u << (this->state->band + 8u));
+    }
+
+    this->mcp->writeGPIOAB(ba);
+}
+
 void Band::loop() {
 
     // detecting qualified events for redrawing
@@ -81,10 +95,7 @@ void Band::loop() {
                 if (state->band != i) {
                     state->band = i;
                     this->redrawType = Full;
-                    uint16_t ba = this->mcp->readGPIOAB();
-                    ba = ba & 0xFFu;// keep register A state
-                    ba = ba | (1u << (i + 8u));
-                    this->mcp->writeGPIOAB(ba);
+                    this->activate();
                 }
                 break;
             }
@@ -115,6 +126,7 @@ void Band::next() {
             (static_cast<uint32_t>(BandsBounds[newBand].start + (BandsBounds[newBand].width / 2))) * 1000;
     this->state->band = newBand;
     this->redrawType = Full;
+    this->activate();
 }
 
 // idea! smart band mode:

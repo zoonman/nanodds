@@ -31,6 +31,7 @@ public:
         };
     void displayScale(bool redraw);
     void scaleTriangle(uint16_t c);
+    void activate();
     void draw() override;
     void loop() override;
     void next();
